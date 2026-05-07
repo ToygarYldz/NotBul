@@ -458,6 +458,23 @@ a {
     gap: 0.56rem;
 }
 
+.my-note-item {
+    flex-wrap: nowrap;
+}
+
+.my-note-main {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.my-note-side {
+    flex: 0 0 auto;
+}
+
+.my-note-file {
+    max-width: 100%;
+}
+
 .pagination .page-link {
     color: #346ec6;
     background: #f7faff;

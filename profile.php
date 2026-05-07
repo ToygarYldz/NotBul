@@ -119,8 +119,8 @@ require __DIR__ . '/includes/header.php';
                                     $statusClass = $isVisible ? 'bg-success' : 'bg-warning text-dark';
                                 ?>
                                 <article class="result-item">
-                                    <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
-                                        <div>
+                                    <div class="my-note-item d-flex justify-content-between align-items-start gap-3">
+                                        <div class="my-note-main">
                                             <h3 class="h6 mb-1"><?= htmlspecialchars((string)$note['title']) ?></h3>
                                             <p class="mb-2 text-secondary small">
                                                 <?= htmlspecialchars((string)($note['course'] ?? '-')) ?>
@@ -128,13 +128,13 @@ require __DIR__ . '/includes/header.php';
                                                     • <?= htmlspecialchars((string)$note['topic']) ?>
                                                 <?php endif; ?>
                                             </p>
-                                            <div class="small text-secondary">
+                                            <div class="small text-secondary my-note-file text-truncate" title="<?= htmlspecialchars((string)$note['original_filename']) ?>">
                                                 <?= htmlspecialchars((string)$note['original_filename']) ?>
                                                 • <?= number_format(((int)$note['file_size']) / 1024, 1, ',', '.') ?> KB
                                             </div>
                                         </div>
 
-                                        <div class="text-end">
+                                        <div class="my-note-side text-end">
                                             <span class="badge <?= htmlspecialchars($statusClass) ?> mb-2"><?= htmlspecialchars($statusText) ?></span>
                                             <div class="small text-secondary mb-2">
                                                 <?= (int)$note['download_count'] ?> indirme
