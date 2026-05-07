@@ -329,7 +329,7 @@ require __DIR__ . '/includes/header.php';
                                 class="btn btn-outline-danger"
                                 onclick="return confirm('Bu notu arşive alıp yayından kaldırmak istediğinize emin misiniz?');"
                             >
-                                Notu Sil
+                                Notu Arşivle
                             </button>
                         </form>
                     <?php endif; ?>

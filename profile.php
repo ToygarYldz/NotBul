@@ -256,11 +256,6 @@ require __DIR__ . '/includes/header.php';
                                                 <?= htmlspecialchars(date('d.m.Y H:i', strtotime((string)$note['created_at']))) ?>
                                             </div>
                                             <div class="d-flex flex-wrap gap-2 justify-content-end">
-                                                <?php if ($isVisible): ?>
-                                                    <a href="note-detail.php?id=<?= (int)$note['id'] ?>" class="btn btn-sm btn-primary">Detay</a>
-                                                <?php else: ?>
-                                                    <button type="button" class="btn btn-sm btn-outline-secondary" disabled>Henüz Yayında Değil</button>
-                                                <?php endif; ?>
                                                 <form method="POST" action="profile.php" class="d-inline-block">
                                                     <input type="hidden" name="action" value="soft_delete_note">
                                                     <input type="hidden" name="note_id" value="<?= (int)$note['id'] ?>">
@@ -270,9 +265,14 @@ require __DIR__ . '/includes/header.php';
                                                         class="btn btn-sm btn-outline-danger"
                                                         onclick="return confirm('Bu notu arşive alıp yayından kaldırmak istediğinize emin misiniz?');"
                                                     >
-                                                        Sil
+                                                        Arşivle
                                                     </button>
                                                 </form>
+                                                <?php if ($isVisible): ?>
+                                                    <a href="note-detail.php?id=<?= (int)$note['id'] ?>" class="btn btn-sm btn-primary">Detay</a>
+                                                <?php else: ?>
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary" disabled>Henüz Yayında Değil</button>
+                                                <?php endif; ?>
                                             </div>
                                         </div>
                                     </div>
