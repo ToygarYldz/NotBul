@@ -125,7 +125,6 @@ function formatFileSizeHuman(int $bytes): string
 
 try {
     require_once __DIR__ . '/includes/db.php';
-    require_once __DIR__ . '/includes/storage.php';
 } catch (Throwable $e) {
     error_log('note-detail DB connection error: ' . $e->getMessage());
     http_response_code(500);
@@ -153,7 +152,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delet
         $deleteError = 'Güvenlik doğrulaması başarısız oldu. Sayfayı yenileyip tekrar deneyin.';
     } else {
         try {
-            $ownerStmt = $pdo->prepare("SELECT id, user_id, storage_path, stored_filename FROM notes WHERE id = :id");
+            $ownerStmt = $pdo->prepare("SELECT id, user_id, deleted_at FROM notes WHERE id = :id");
             $ownerStmt->execute(['id' => $id]);
             $noteToDelete = $ownerStmt->fetch();
 
@@ -164,37 +163,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delet
 
             if ((int)$noteToDelete['user_id'] !== $currentUserId) {
                 $deleteError = 'Sadece kendi yüklediğiniz notları silebilirsiniz.';
+            } elseif ($noteToDelete['deleted_at'] !== null) {
+                header('Location: profile.php?note_deleted=1');
+                exit;
             } else {
-                $pdo->beginTransaction();
-
-                $deleteStmt = $pdo->prepare("DELETE FROM notes WHERE id = :id AND user_id = :user_id LIMIT 1");
+                $deleteStmt = $pdo->prepare("
+                    UPDATE notes
+                    SET deleted_at = NOW(),
+                        deleted_by = :deleted_by
+                    WHERE id = :id
+                      AND user_id = :user_id
+                      AND deleted_at IS NULL
+                    LIMIT 1
+                ");
                 $deleteStmt->execute([
                     'id' => $id,
+                    'deleted_by' => $currentUserId,
                     'user_id' => $currentUserId
                 ]);
 
                 if ($deleteStmt->rowCount() < 1) {
-                    $pdo->rollBack();
-                    $deleteError = 'Not silinirken bir sorun oluştu. Lütfen tekrar deneyin.';
+                    $deleteError = 'Not arşive alınamadı. Not zaten silinmiş olabilir.';
                 } else {
-                    $pdo->commit();
-
-                    $storagePath = resolveNoteStoragePath($noteToDelete);
-                    if ($storagePath !== null) {
-                        $absolutePath = buildNoteAbsolutePath($storagePath);
-                        if (is_file($absolutePath)) {
-                            @unlink($absolutePath);
-                        }
-                    }
-
-                    header('Location: index.php?note_deleted=1');
+                    header('Location: profile.php?note_deleted=1');
                     exit;
                 }
             }
         } catch (Throwable $e) {
-            if ($pdo->inTransaction()) {
-                $pdo->rollBack();
-            }
             error_log('note-detail delete error: ' . $e->getMessage());
             $deleteError = 'Not silinirken beklenmeyen bir hata oluştu.';
         }
@@ -209,6 +204,7 @@ try {
         WHERE n.id = :id
           AND n.upload_status = 'ready'
           AND n.scan_status = 'clean'
+          AND n.deleted_at IS NULL
     ");
     $stmt->execute(['id' => $id]);
     $note = $stmt->fetch();
@@ -331,7 +327,7 @@ require __DIR__ . '/includes/header.php';
                             <button
                                 type="submit"
                                 class="btn btn-outline-danger"
-                                onclick="return confirm('Bu notu kalıcı olarak silmek istediğinize emin misiniz?');"
+                                onclick="return confirm('Bu notu arşive alıp yayından kaldırmak istediğinize emin misiniz?');"
                             >
                                 Notu Sil
                             </button>

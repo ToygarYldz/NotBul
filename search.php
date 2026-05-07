@@ -36,6 +36,7 @@ if (!$dbUnavailable) {
             JOIN users u ON n.user_id = u.id
             WHERE n.upload_status = 'ready'
               AND n.scan_status = 'clean'
+              AND n.deleted_at IS NULL
             ORDER BY n.created_at DESC
         ");
         $rows = $stmt->fetchAll();

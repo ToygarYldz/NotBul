@@ -11,14 +11,15 @@
             <div class="col-6 col-lg-3">
                 <h3 class="footer-title">Anasayfa</h3>
                 <ul class="footer-list">                    
-                    <li><a href="#">Giriş Yap</a></li>
-                    <li><a href="#">Kayıt Ol</a></li>
-
+                    <li><a href="/login.php">Giriş Yap</a></li>
+                    <li><a href="/register.php">Kayıt Ol</a></li>
+                    <li><a href="/profile.php">Profil</a></li>
                 </ul>
             </div>
             <div class="col-6 col-lg-3">
                 <h3 class="footer-title">Linkler</h3>
                 <ul class="footer-list">
+                    <li><a href="#">Hakkımızda</a></li>
                     <li><a href="search.php">Ders Notu Bul</a></li>
                     <li><a href="upload.php">Not Yükle</a></li>
                     

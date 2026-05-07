@@ -267,10 +267,8 @@ require __DIR__ . '/includes/header.php';
                 <aside class="panel-card sticky-panel">
                     <h2 class="h5">Yükleme Bilgilendirmesi</h2>
                     <ul class="security-list mb-0">
-                        <li>Dosya türü ve uzantı sunucuda yeniden kontrol edilir.</li>
                         <li><?= (int)$maxUploadMb ?> MB üstündeki dosyalar kabul edilmez.</li>
-                        <li>Dosyalar güvenli bir isimle saklanır.</li>
-                        <li>Dosyalar doğrudan bağlantıyla değil, güvenli görüntüleme/indirme ile sunulur.</li>
+                        <li>Dosya isimi herkes tarafından görülebilir.</li>
                         <li>Girilen metinler güvenli filtrelerden geçirilir.</li>
                     </ul>
                 </aside>

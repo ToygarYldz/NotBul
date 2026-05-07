@@ -21,6 +21,7 @@ $stmt = $pdo->prepare("
     WHERE id = :id
       AND upload_status = 'ready'
       AND scan_status = 'clean'
+      AND deleted_at IS NULL
 ");
 $stmt->execute(['id' => $id]);
 $note = $stmt->fetch();
@@ -42,7 +43,7 @@ if (!file_exists($filePath)) {
 
 if ($isDownload) {
     try {
-        $incrementStmt = $pdo->prepare("UPDATE notes SET download_count = download_count + 1 WHERE id = :id");
+        $incrementStmt = $pdo->prepare("UPDATE notes SET download_count = download_count + 1 WHERE id = :id AND deleted_at IS NULL");
         $incrementStmt->execute(['id' => $id]);
     } catch (Throwable $e) {
         error_log('view.php download_count update error: ' . $e->getMessage());

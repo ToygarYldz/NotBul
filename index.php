@@ -38,6 +38,7 @@ if (!$dbUnavailable) {
             JOIN users u ON n.user_id = u.id
             WHERE n.upload_status = 'ready'
               AND n.scan_status = 'clean'
+              AND n.deleted_at IS NULL
             ORDER BY n.created_at DESC
         ");
         $rows = $stmt->fetchAll();
@@ -113,7 +114,7 @@ require __DIR__ . '/includes/header.php';
 
 $errorMsg = isset($_GET['error']) && $_GET['error'] === 'not_found' ? 'Üzgünüz, aradığınız not veritabanında bulunamadı (ID: ' . (int)$_GET['id'] . ').' : '';
 $successMsg = isset($_GET['note_deleted']) && $_GET['note_deleted'] === '1'
-    ? 'Not başarıyla silindi.'
+    ? 'Not başarıyla arşive alındı.'
     : '';
 ?>
 <main class="page-shell">

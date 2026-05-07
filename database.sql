@@ -61,6 +61,8 @@ CREATE TABLE IF NOT EXISTS notes (
     download_count BIGINT UNSIGNED NOT NULL DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at DATETIME NULL,
+    deleted_by INT NULL,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
@@ -74,7 +76,9 @@ ALTER TABLE notes
     ADD COLUMN IF NOT EXISTS upload_status ENUM('pending', 'ready', 'rejected') NOT NULL DEFAULT 'pending' AFTER mime_type,
     ADD COLUMN IF NOT EXISTS scan_status ENUM('pending', 'clean', 'infected') NOT NULL DEFAULT 'pending' AFTER upload_status,
     ADD COLUMN IF NOT EXISTS download_count BIGINT UNSIGNED NOT NULL DEFAULT 0 AFTER scan_status,
-    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER created_at;
+    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER created_at,
+    ADD COLUMN IF NOT EXISTS deleted_at DATETIME NULL AFTER updated_at,
+    ADD COLUMN IF NOT EXISTS deleted_by INT NULL AFTER deleted_at;
 
 -- Backfill for previous schema rows.
 UPDATE notes
@@ -104,3 +108,5 @@ CREATE INDEX IF NOT EXISTS idx_notes_created_at ON notes(created_at);
 CREATE INDEX IF NOT EXISTS idx_notes_status ON notes(upload_status, scan_status);
 CREATE INDEX IF NOT EXISTS idx_notes_course ON notes(course);
 CREATE INDEX IF NOT EXISTS idx_notes_sha256 ON notes(sha256);
+CREATE INDEX IF NOT EXISTS idx_notes_deleted_at ON notes(deleted_at);
+CREATE INDEX IF NOT EXISTS idx_notes_user_deleted_at ON notes(user_id, deleted_at, created_at);
