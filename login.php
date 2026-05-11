@@ -18,7 +18,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($email) || empty($password)) {
         $error = 'Lütfen tüm alanları doldurun.';
     } else {
-        $stmt = $pdo->prepare("SELECT id, first_name, last_name, password, verified FROM users WHERE email = :email");
+        $stmt = $pdo->prepare("SELECT id, first_name, last_name, password, verified, role FROM users WHERE email = :email");
         $stmt->execute(['email' => $email]);
         $user = $stmt->fetch();
 
@@ -30,6 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['user_id'] = $user['id'];
                 $_SESSION['first_name'] = $user['first_name'];
                 $_SESSION['last_name'] = $user['last_name'];
+                $_SESSION['role'] = $user['role'] ?? 'user';
 
                 header('Location: index.php');
                 exit;

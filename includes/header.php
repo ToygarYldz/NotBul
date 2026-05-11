@@ -49,6 +49,10 @@ $navItems = [
                                 <i class="fa-solid fa-user"></i> <span><?= htmlspecialchars($_SESSION['first_name']) ?></span>
                             </button>
                             <ul class="dropdown-menu dropdown-menu-end shadow-sm" aria-labelledby="userMenuButton">
+                                <?php if (($_SESSION['role'] ?? 'user') === 'admin'): ?>
+                                    <li><a class="dropdown-item" href="admin.php"><i class="fa-solid fa-gauge-high ms-1 me-2 text-primary"></i>Admin Paneli</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                <?php endif; ?>
                                 <li><a class="dropdown-item" href="profile.php"><i class="fa-solid fa-id-card ms-1 me-2 text-primary"></i>Profilim</a></li>
                                 <li><a class="dropdown-item" href="profile_edit.php"><i class="fa-solid fa-user-pen ms-1 me-2 text-primary"></i>Profili Düzenle</a></li>
                                 <li><hr class="dropdown-divider"></li>
@@ -64,4 +68,3 @@ $navItems = [
         </nav>
     </div>
 </header>
-

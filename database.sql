@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS users (
     email VARCHAR(100) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
     verified TINYINT(1) NOT NULL DEFAULT 0,
+    role ENUM('user', 'admin') NOT NULL DEFAULT 'user',
     email_verification_token CHAR(64) NULL,
     email_verification_token_expires_at DATETIME NULL,
     password_reset_token CHAR(64) NULL,
@@ -20,7 +21,8 @@ CREATE TABLE IF NOT EXISTS users (
 -- Existing installations migration.
 ALTER TABLE users
     ADD COLUMN IF NOT EXISTS verified TINYINT(1) NOT NULL DEFAULT 0 AFTER password,
-    ADD COLUMN IF NOT EXISTS email_verification_token CHAR(64) NULL AFTER verified,
+    ADD COLUMN IF NOT EXISTS role ENUM('user', 'admin') NOT NULL DEFAULT 'user' AFTER verified,
+    ADD COLUMN IF NOT EXISTS email_verification_token CHAR(64) NULL AFTER role,
     ADD COLUMN IF NOT EXISTS email_verification_token_expires_at DATETIME NULL AFTER email_verification_token,
     ADD COLUMN IF NOT EXISTS password_reset_token CHAR(64) NULL AFTER email_verification_token_expires_at,
     ADD COLUMN IF NOT EXISTS password_reset_token_expires_at DATETIME NULL AFTER password_reset_token,
@@ -34,8 +36,18 @@ WHERE verified = 0
   AND email_verification_token IS NULL;
 
 CREATE INDEX IF NOT EXISTS idx_users_verified ON users(verified);
+CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
 CREATE INDEX IF NOT EXISTS idx_users_email_verification_token ON users(email_verification_token);
 CREATE INDEX IF NOT EXISTS idx_users_password_reset_token ON users(password_reset_token);
+
+-- First admin account setup:
+-- 1) Create a normal user through the app or insert one manually with a password_hash() value.
+-- 2) Promote that account:
+-- UPDATE users
+-- SET role = 'admin',
+--     verified = 1,
+--     verified_at = COALESCE(verified_at, NOW())
+-- WHERE email = 'admin@mail.com';
 
 CREATE TABLE IF NOT EXISTS notes (
     id INT AUTO_INCREMENT PRIMARY KEY,
