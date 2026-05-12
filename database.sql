@@ -122,3 +122,15 @@ CREATE INDEX IF NOT EXISTS idx_notes_course ON notes(course);
 CREATE INDEX IF NOT EXISTS idx_notes_sha256 ON notes(sha256);
 CREATE INDEX IF NOT EXISTS idx_notes_deleted_at ON notes(deleted_at);
 CREATE INDEX IF NOT EXISTS idx_notes_user_deleted_at ON notes(user_id, deleted_at, created_at);
+
+CREATE TABLE IF NOT EXISTS note_comments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    note_id INT NOT NULL,
+    user_id INT NOT NULL,
+    rating TINYINT UNSIGNED NOT NULL DEFAULT 5,
+    comment TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_note_comments_note_id ON note_comments(note_id);

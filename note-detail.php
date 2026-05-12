@@ -140,6 +140,7 @@ if ($id <= 0) {
 }
 
 $deleteError = '';
+$commentError = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delete_note') {
     $currentUserId = isset($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : 0;
@@ -196,6 +197,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delet
     }
 }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'add_comment') {
+    $currentUserId = isset($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : 0;
+    $rating = (int)($_POST['rating'] ?? 5);
+    $commentText = trim((string)($_POST['comment'] ?? ''));
+    $requestToken = (string)($_POST['csrf_token'] ?? '');
+    $sessionToken = (string)($_SESSION['csrf_token_note_comment'] ?? '');
+
+    if ($currentUserId <= 0) {
+        $commentError = 'Yorum yapmak için giriş yapmalısınız.';
+    } elseif ($sessionToken === '' || !hash_equals($sessionToken, $requestToken)) {
+        $commentError = 'Güvenlik doğrulaması başarısız oldu. Lütfen tekrar deneyin.';
+    } elseif ($rating < 1 || $rating > 5) {
+        $commentError = 'Geçersiz puanlama.';
+    } elseif ($commentText === '') {
+        $commentError = 'Yorum boş olamaz.';
+    } else {
+        try {
+            $stmt = $pdo->prepare("INSERT INTO note_comments (note_id, user_id, rating, comment) VALUES (:note_id, :user_id, :rating, :comment)");
+            $stmt->execute([
+                'note_id' => $id,
+                'user_id' => $currentUserId,
+                'rating' => $rating,
+                'comment' => $commentText
+            ]);
+            header("Location: note-detail.php?id=$id&comment_added=1");
+            exit;
+        } catch (Throwable $e) {
+            error_log('note-detail comment error: ' . $e->getMessage());
+            $commentError = 'Yorum kaydedilirken bir hata oluştu.';
+        }
+    }
+}
+
 try {
     $stmt = $pdo->prepare("
         SELECT n.*, u.first_name, u.last_name 
@@ -228,6 +262,31 @@ if ($deleteToken === '') {
         $deleteToken = hash('sha256', session_id() . (string)microtime(true));
     }
     $_SESSION['csrf_token_note_delete'] = $deleteToken;
+}
+
+$commentToken = (string)($_SESSION['csrf_token_note_comment'] ?? '');
+if ($commentToken === '') {
+    try {
+        $commentToken = bin2hex(random_bytes(32));
+    } catch (Throwable $e) {
+        $commentToken = hash('sha256', session_id() . (string)microtime(true));
+    }
+    $_SESSION['csrf_token_note_comment'] = $commentToken;
+}
+
+$comments = [];
+try {
+    $stmt = $pdo->prepare("
+        SELECT nc.*, u.first_name, u.last_name
+        FROM note_comments nc
+        JOIN users u ON nc.user_id = u.id
+        WHERE nc.note_id = :note_id
+        ORDER BY nc.created_at DESC
+    ");
+    $stmt->execute(['note_id' => $id]);
+    $comments = $stmt->fetchAll();
+} catch (Throwable $e) {
+    error_log('note-detail fetch comments error: ' . $e->getMessage());
 }
 
 $isOwner = isset($_SESSION['user_id']) && (int)$_SESSION['user_id'] === (int)$note['user_id'];
@@ -334,6 +393,68 @@ require __DIR__ . '/includes/header.php';
                         </form>
                     <?php endif; ?>
                 </article>
+            </div>
+        </div>
+
+        <div class="row g-4 mt-2">
+            <div class="col-12">
+                <div class="panel-card">
+                    <h2 class="section-title h4 mb-4">Yorumlar</h2>
+                    
+                    <?php if ($commentError): ?>
+                        <div class="alert alert-danger"><?= htmlspecialchars($commentError) ?></div>
+                    <?php endif; ?>
+                    <?php if (isset($_GET['comment_added'])): ?>
+                        <div class="alert alert-success">Yorumunuz başarıyla eklendi.</div>
+                    <?php endif; ?>
+
+                    <?php if (isset($_SESSION['user_id'])): ?>
+                        <form method="POST" action="note-detail.php?id=<?= $note['id'] ?>" class="mb-4">
+                            <input type="hidden" name="action" value="add_comment">
+                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($commentToken, ENT_QUOTES, 'UTF-8') ?>">
+                            <div class="row g-3">
+                                <div class="col-md-3">
+                                    <label for="rating" class="form-label">Değerlendirme</label>
+                                    <select name="rating" id="rating" class="form-select" required>
+                                        <option value="5">5 - Harika</option>
+                                        <option value="4">4 - İyi</option>
+                                        <option value="3">3 - Orta</option>
+                                        <option value="2">2 - Kötü</option>
+                                        <option value="1">1 - Çok Kötü</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-9">
+                                    <label for="comment" class="form-label">Yorumunuz</label>
+                                    <textarea name="comment" id="comment" rows="3" class="form-control" placeholder="Not hakkında düşünceleriniz..." required></textarea>
+                                </div>
+                                <div class="col-12 text-end">
+                                    <button type="submit" class="btn btn-primary">Yorum Gönder</button>
+                                </div>
+                            </div>
+                        </form>
+                    <?php else: ?>
+                        <div class="alert alert-info">Yorum yapabilmek için <a href="login.php">giriş yapmalısınız</a>.</div>
+                    <?php endif; ?>
+
+                    <div class="comments-list">
+                        <?php if (empty($comments)): ?>
+                            <p class="text-secondary">Henüz yorum yapılmamış. İlk yorumu siz yapın!</p>
+                        <?php else: ?>
+                            <?php foreach ($comments as $comment): ?>
+                                <article class="comment-item p-3 border rounded mb-3 bg-light">
+                                    <header class="d-flex justify-content-between align-items-center mb-2">
+                                        <strong><?= htmlspecialchars($comment['first_name'] . ' ' . $comment['last_name']) ?></strong>
+                                        <span class="text-secondary small">
+                                            <?= htmlspecialchars((string)$comment['rating']) ?>/5 | 
+                                            <?= date('d.m.Y H:i', strtotime((string)$comment['created_at'])) ?>
+                                        </span>
+                                    </header>
+                                    <p class="mb-0 text-break"><?= nl2br(htmlspecialchars($comment['comment'])) ?></p>
+                                </article>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </div>
+                </div>
             </div>
         </div>
     </section>
