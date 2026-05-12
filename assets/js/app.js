@@ -79,6 +79,57 @@
         return new Intl.NumberFormat('tr-TR').format(numberValue || 0);
     }
 
+    function formatRatingAverage(ratingValue) {
+        const rating = Number.parseFloat(ratingValue);
+        if (!Number.isFinite(rating)) {
+            return '';
+        }
+
+        return new Intl.NumberFormat('tr-TR', {
+            minimumFractionDigits: 1,
+            maximumFractionDigits: 1
+        }).format(Math.min(5, Math.max(1, rating)));
+    }
+
+    function ratingSummaryTemplate(note, showCount = false) {
+        const count = Number.parseInt(note.ratingCount || 0, 10);
+        const average = Number.parseFloat(note.ratingAverage);
+
+        if (!count || !Number.isFinite(average)) {
+            return '';
+        }
+
+        const countLabel = count === 1 ? '1 değerlendirme' : `${formatNumber(count)} değerlendirme`;
+        const countHtml = showCount ? `<span class="rating-count">(${formatNumber(count)})</span>` : '';
+
+        return `
+            <span class="rating-summary" title="${escapeHtml(countLabel)}">
+                <i class="fa-solid fa-star" aria-hidden="true"></i>
+                <span class="rating-score">${escapeHtml(formatRatingAverage(average))}</span>
+                ${countHtml}
+            </span>
+        `;
+    }
+
+    function ratingStarsTemplate(ratingValue, showValue = true) {
+        const parsedRating = Number.parseInt(ratingValue || 0, 10);
+        const rating = Number.isFinite(parsedRating)
+            ? Math.min(5, Math.max(1, parsedRating))
+            : 1;
+        const stars = Array.from({ length: 5 }, (_, index) => {
+            const iconClass = index < rating ? 'fa-solid' : 'fa-regular';
+            return `<i class="${iconClass} fa-star" aria-hidden="true"></i>`;
+        }).join('');
+        const valueHtml = showValue ? `<span class="rating-value">${rating}/5</span>` : '';
+
+        return `
+            <span class="rating-stars-wrap">
+                <span class="rating-stars" aria-label="${rating}/5">${stars}</span>
+                ${valueHtml}
+            </span>
+        `;
+    }
+
     function resolveUniversityName(id) {
         const remote = REMOTE.universitiesById.get(id);
         if (remote) {
@@ -466,6 +517,7 @@
             .map((tag) => `<span class="badge bg-light text-secondary fw-normal">#${escapeHtml(tag)}</span>`)
             .join('');
         const course = resolveCourseName(note) || '-';
+        const ratingHtml = ratingSummaryTemplate(note);
 
         return `
             <article class="col-sm-6 col-xl-4">
@@ -476,12 +528,15 @@
                             ${escapeHtml(shortenText(note.description))}
                         </p>
                         <div class="note-tags mb-3">${tagHtml}</div>
-                        <div class="d-flex justify-content-between align-items-center">
+                        <div class="note-card-footer d-flex justify-content-between align-items-center gap-3">
                             <div class="small">
                                 <div class="fw-bold text-dark">${escapeHtml(note.uploader || '-')}</div>
                                 <div class="text-secondary">${escapeHtml(course)}</div>
                             </div>
-                            <a href="note-detail.php?id=${note.id}" class="btn btn-sm btn-primary">Detay</a>
+                            <div class="note-card-actions d-flex align-items-center gap-2 ms-auto">
+                                ${ratingHtml}
+                                <a href="note-detail.php?id=${note.id}" class="btn btn-sm btn-primary">Detay</a>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -798,7 +853,7 @@
             const item = document.createElement('article');
             item.className = 'comment-item';
             item.innerHTML = `
-                <header><strong>${escapeHtml(author)}</strong> <span class="text-secondary">| ${escapeHtml(rating)}/5</span></header>
+                <header><strong>${escapeHtml(author)}</strong> ${ratingStarsTemplate(rating)}</header>
                 <p class="mb-0">${escapeHtml(text)}</p>
             `;
 
@@ -863,6 +918,8 @@
             }
 
             resultsContainer.innerHTML = pageItems.map((note) => {
+                const ratingHtml = ratingSummaryTemplate(note, true);
+
                 return `
                     <article class="result-item">
                         <div class="d-flex justify-content-between align-items-start gap-3">
@@ -878,8 +935,9 @@
                                 <span class="note-tag">${escapeHtml(resolveCourseName(note))}</span>
                                 <span class="note-tag">${escapeHtml(resolveTopicName(note))}</span>
                             </div>
-                            <div class="text-secondary small">
-                                ${formatDate(note.createdAt)} | ${formatNumber(note.downloads)} indirme
+                            <div class="result-stats text-secondary small">
+                                ${ratingHtml}
+                                <span>${formatDate(note.createdAt)} | ${formatNumber(note.downloads)} indirme</span>
                             </div>
                         </div>
                     </article>

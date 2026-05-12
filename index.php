@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 @session_start();
 
+require_once __DIR__ . '/includes/ratings.php';
+
 $latestNotes = [];
 $popularNotes = [];
 $notesPayload = [];
@@ -32,10 +34,17 @@ if (!$dbUnavailable) {
                 n.mime_type,
                 n.download_count AS download_count,
                 n.created_at,
+                rs.rating_average,
+                COALESCE(rs.rating_count, 0) AS rating_count,
                 u.first_name,
                 u.last_name
             FROM notes n
             JOIN users u ON n.user_id = u.id
+            LEFT JOIN (
+                SELECT note_id, AVG(rating) AS rating_average, COUNT(*) AS rating_count
+                FROM note_comments
+                GROUP BY note_id
+            ) rs ON rs.note_id = n.id
             WHERE n.upload_status = 'ready'
               AND n.scan_status = 'clean'
               AND n.deleted_at IS NULL
@@ -64,6 +73,8 @@ if (!$dbUnavailable) {
                 'tags' => $tags,
                 'views' => 0,
                 'downloads' => (int)($row['download_count'] ?? 0),
+                'ratingAverage' => ratingAverageValue($row['rating_average'] ?? null, (int)($row['rating_count'] ?? 0)),
+                'ratingCount' => (int)($row['rating_count'] ?? 0),
                 'fileType' => $fileType,
                 'createdAt' => (string)$row['created_at']
             ];
@@ -186,12 +197,17 @@ $successMsg = isset($_GET['note_deleted']) && $_GET['note_deleted'] === '1'
                                             <span class="badge bg-light text-secondary fw-normal">#<?= htmlspecialchars($tag) ?></span>
                                         <?php endforeach; ?>
                                     </div>
-                                    <div class="d-flex justify-content-between align-items-center">
+                                    <div class="note-card-footer d-flex justify-content-between align-items-center gap-3">
                                         <div class="small">
                                             <div class="fw-bold text-dark"><?= htmlspecialchars(trim((string)$note['first_name'] . ' ' . (string)$note['last_name'])) ?></div>
                                             <div class="text-secondary"><?= htmlspecialchars((string)($note['course'] ?? '-')) ?></div>
                                         </div>
-                                        <a href="note-detail.php?id=<?= (int)$note['id'] ?>" class="btn btn-sm btn-primary">Detay</a>
+                                        <div class="note-card-actions d-flex align-items-center gap-2 ms-auto">
+                                            <?php if ((int)($note['rating_count'] ?? 0) > 0): ?>
+                                                <?= renderRatingSummary($note['rating_average'] ?? null, (int)$note['rating_count']) ?>
+                                            <?php endif; ?>
+                                            <a href="note-detail.php?id=<?= (int)$note['id'] ?>" class="btn btn-sm btn-primary">Detay</a>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -227,12 +243,17 @@ $successMsg = isset($_GET['note_deleted']) && $_GET['note_deleted'] === '1'
                                             <span class="badge bg-light text-secondary fw-normal">#<?= htmlspecialchars($tag) ?></span>
                                         <?php endforeach; ?>
                                     </div>
-                                    <div class="d-flex justify-content-between align-items-center">
+                                    <div class="note-card-footer d-flex justify-content-between align-items-center gap-3">
                                         <div class="small">
                                             <div class="fw-bold text-dark"><?= htmlspecialchars(trim((string)$note['first_name'] . ' ' . (string)$note['last_name'])) ?></div>
                                             <div class="text-secondary"><?= htmlspecialchars((string)($note['course'] ?? '-')) ?></div>
                                         </div>
-                                        <a href="note-detail.php?id=<?= (int)$note['id'] ?>" class="btn btn-sm btn-primary">Detay</a>
+                                        <div class="note-card-actions d-flex align-items-center gap-2 ms-auto">
+                                            <?php if ((int)($note['rating_count'] ?? 0) > 0): ?>
+                                                <?= renderRatingSummary($note['rating_average'] ?? null, (int)$note['rating_count']) ?>
+                                            <?php endif; ?>
+                                            <a href="note-detail.php?id=<?= (int)$note['id'] ?>" class="btn btn-sm btn-primary">Detay</a>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

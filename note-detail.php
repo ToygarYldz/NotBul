@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 @session_start();
 
+require_once __DIR__ . '/includes/ratings.php';
+
 function resolveDepartmentName(string $departmentId): string
 {
     $normalizedId = trim($departmentId);
@@ -141,8 +143,9 @@ if ($id <= 0) {
 
 $deleteError = '';
 $commentError = '';
+$requestMethod = (string)($_SERVER['REQUEST_METHOD'] ?? 'GET');
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delete_note') {
+if ($requestMethod === 'POST' && ($_POST['action'] ?? '') === 'delete_note') {
     $currentUserId = isset($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : 0;
     $requestToken = (string)($_POST['csrf_token'] ?? '');
     $sessionToken = (string)($_SESSION['csrf_token_note_delete'] ?? '');
@@ -197,7 +200,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delet
     }
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'add_comment') {
+if ($requestMethod === 'POST' && ($_POST['action'] ?? '') === 'add_comment') {
     $currentUserId = isset($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : 0;
     $rating = (int)($_POST['rating'] ?? 5);
     $commentText = trim((string)($_POST['comment'] ?? ''));
@@ -230,7 +233,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'add_c
     }
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delete_comment') {
+if ($requestMethod === 'POST' && ($_POST['action'] ?? '') === 'delete_comment') {
     $currentUserId = isset($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : 0;
     $commentId = (int)($_POST['comment_id'] ?? 0);
     $requestToken = (string)($_POST['csrf_token'] ?? '');
@@ -272,9 +275,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delet
 
 try {
     $stmt = $pdo->prepare("
-        SELECT n.*, u.first_name, u.last_name 
+        SELECT
+            n.*,
+            u.first_name,
+            u.last_name,
+            rs.rating_average,
+            COALESCE(rs.rating_count, 0) AS rating_count
         FROM notes n
         JOIN users u ON n.user_id = u.id
+        LEFT JOIN (
+            SELECT note_id, AVG(rating) AS rating_average, COUNT(*) AS rating_count
+            FROM note_comments
+            GROUP BY note_id
+        ) rs ON rs.note_id = n.id
         WHERE n.id = :id
           AND n.upload_status = 'ready'
           AND n.scan_status = 'clean'
@@ -342,6 +355,8 @@ $fileExtension = $fileExtension !== '' ? $fileExtension : '-';
 $downloadCount = (int)($note['download_count'] ?? 0);
 $fileSizeBytes = (int)($note['file_size'] ?? 0);
 $formattedCreatedAt = date('d.m.Y H:i', strtotime((string)$note['created_at']));
+$ratingCount = (int)($note['rating_count'] ?? 0);
+$ratingAverage = $note['rating_average'] ?? null;
 
 $pageTitle = 'Not Bul | ' . htmlspecialchars($note['title']);
 $pageKey = 'detail';
@@ -382,7 +397,10 @@ require __DIR__ . '/includes/header.php';
 
             <div class="col-lg-5">
                 <article class="panel-card h-100">
-                    <h1 class="section-title mb-2"><?= htmlspecialchars($note['title']) ?></h1>
+                    <div class="d-flex align-items-center flex-wrap gap-2 mb-2">
+                        <h1 class="section-title mb-0"><?= htmlspecialchars($note['title']) ?></h1>
+                        <?= renderRatingSummary($ratingAverage, $ratingCount, true, 'Henüz puan yok') ?>
+                    </div>
                     <p class="text-secondary"><?= nl2br(htmlspecialchars($note['description'] ?? 'Açıklama belirtilmedi.')) ?></p>
 
                     <div class="note-meta-grid">
@@ -469,7 +487,7 @@ require __DIR__ . '/includes/header.php';
                                 </div>
                                 <div class="col-md-9">
                                     <label for="comment" class="form-label">Yorumunuz</label>
-                                    <textarea name="comment" id="comment" rows="3" class="form-control" placeholder="Not hakkında düşünceleriniz..." required></textarea>
+                                    <textarea name="comment" id="comment" rows="3" maxlength="5000" class="form-control" placeholder="Not hakkında düşünceleriniz..." required></textarea>
                                 </div>
                                 <div class="col-12 text-end">
                                     <button type="submit" class="btn btn-primary">Yorum Gönder</button>
@@ -490,9 +508,9 @@ require __DIR__ . '/includes/header.php';
                                     <header class="d-flex justify-content-between align-items-start gap-3 mb-2 flex-wrap">
                                         <div>
                                             <strong><?= htmlspecialchars($comment['first_name'] . ' ' . $comment['last_name']) ?></strong>
-                                            <div class="text-secondary small">
-                                                <?= htmlspecialchars((string)$comment['rating']) ?>/5 | 
-                                                <?= date('d.m.Y H:i', strtotime((string)$comment['created_at'])) ?>
+                                            <div class="comment-meta small">
+                                                <?= renderRatingStars((int)$comment['rating']) ?>
+                                                <span class="text-secondary"><?= date('d.m.Y H:i', strtotime((string)$comment['created_at'])) ?></span>
                                             </div>
                                         </div>
                                         <?php if ($isCommentOwner): ?>

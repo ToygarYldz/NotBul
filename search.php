@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 @session_start();
 
+require_once __DIR__ . '/includes/ratings.php';
+
 $notesPayload = [];
 $dbUnavailable = false;
 
@@ -30,10 +32,17 @@ if (!$dbUnavailable) {
                 n.mime_type,
                 n.download_count AS download_count,
                 n.created_at,
+                rs.rating_average,
+                COALESCE(rs.rating_count, 0) AS rating_count,
                 u.first_name,
                 u.last_name
             FROM notes n
             JOIN users u ON n.user_id = u.id
+            LEFT JOIN (
+                SELECT note_id, AVG(rating) AS rating_average, COUNT(*) AS rating_count
+                FROM note_comments
+                GROUP BY note_id
+            ) rs ON rs.note_id = n.id
             WHERE n.upload_status = 'ready'
               AND n.scan_status = 'clean'
               AND n.deleted_at IS NULL
@@ -62,6 +71,8 @@ if (!$dbUnavailable) {
                 'tags' => $tags,
                 'views' => 0,
                 'downloads' => (int)($row['download_count'] ?? 0),
+                'ratingAverage' => ratingAverageValue($row['rating_average'] ?? null, (int)($row['rating_count'] ?? 0)),
+                'ratingCount' => (int)($row['rating_count'] ?? 0),
                 'fileType' => $fileType,
                 'createdAt' => (string)$row['created_at']
             ];

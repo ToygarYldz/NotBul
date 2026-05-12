@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/includes/db.php';
+require_once __DIR__ . '/includes/ratings.php';
 @session_start();
 
 if (!isset($_SESSION['user_id'])) {
@@ -136,22 +137,55 @@ $stmtCommentCount->execute(['uid' => $userId]);
 $commentCount = (int)$stmtCommentCount->fetch()['comment_count'];
 
 $stmtMyNotes = $pdo->prepare("
-    SELECT id, title, course, topic, original_filename, file_size, download_count, upload_status, scan_status, created_at
-    FROM notes
-    WHERE user_id = :uid
-      AND deleted_at IS NULL
-    ORDER BY created_at DESC
+    SELECT
+        n.id,
+        n.title,
+        n.course,
+        n.topic,
+        n.original_filename,
+        n.file_size,
+        n.download_count,
+        n.upload_status,
+        n.scan_status,
+        n.created_at,
+        rs.rating_average,
+        COALESCE(rs.rating_count, 0) AS rating_count
+    FROM notes n
+    LEFT JOIN (
+        SELECT note_id, AVG(rating) AS rating_average, COUNT(*) AS rating_count
+        FROM note_comments
+        GROUP BY note_id
+    ) rs ON rs.note_id = n.id
+    WHERE n.user_id = :uid
+      AND n.deleted_at IS NULL
+    ORDER BY n.created_at DESC
     LIMIT 12
 ");
 $stmtMyNotes->execute(['uid' => $userId]);
 $myNotes = $stmtMyNotes->fetchAll();
 
 $stmtDeletedNotes = $pdo->prepare("
-    SELECT id, title, course, topic, original_filename, file_size, download_count, deleted_at, created_at
-    FROM notes
-    WHERE user_id = :uid
-      AND deleted_at IS NOT NULL
-    ORDER BY deleted_at DESC
+    SELECT
+        n.id,
+        n.title,
+        n.course,
+        n.topic,
+        n.original_filename,
+        n.file_size,
+        n.download_count,
+        n.deleted_at,
+        n.created_at,
+        rs.rating_average,
+        COALESCE(rs.rating_count, 0) AS rating_count
+    FROM notes n
+    LEFT JOIN (
+        SELECT note_id, AVG(rating) AS rating_average, COUNT(*) AS rating_count
+        FROM note_comments
+        GROUP BY note_id
+    ) rs ON rs.note_id = n.id
+    WHERE n.user_id = :uid
+      AND n.deleted_at IS NOT NULL
+    ORDER BY n.deleted_at DESC
     LIMIT 12
 ");
 $stmtDeletedNotes->execute(['uid' => $userId]);
@@ -311,6 +345,11 @@ require __DIR__ . '/includes/header.php';
                                                 <?= htmlspecialchars((string)$note['original_filename']) ?>
                                                 • <?= number_format(((int)$note['file_size']) / 1024, 1, ',', '.') ?> KB
                                             </div>
+                                            <?php if ((int)($note['rating_count'] ?? 0) > 0): ?>
+                                                <div class="mt-2">
+                                                    <?= renderRatingSummary($note['rating_average'] ?? null, (int)$note['rating_count'], true) ?>
+                                                </div>
+                                            <?php endif; ?>
                                         </div>
 
                                         <div class="my-note-side text-end">
@@ -371,6 +410,11 @@ require __DIR__ . '/includes/header.php';
                                                 <?= htmlspecialchars((string)$deletedNote['original_filename']) ?>
                                                 • <?= number_format(((int)$deletedNote['file_size']) / 1024, 1, ',', '.') ?> KB
                                             </div>
+                                            <?php if ((int)($deletedNote['rating_count'] ?? 0) > 0): ?>
+                                                <div class="mt-2">
+                                                    <?= renderRatingSummary($deletedNote['rating_average'] ?? null, (int)$deletedNote['rating_count'], true) ?>
+                                                </div>
+                                            <?php endif; ?>
                                         </div>
 
                                         <div class="my-note-side text-end">
@@ -413,7 +457,7 @@ require __DIR__ . '/includes/header.php';
                                             <h3 class="h6 mb-1"><?= htmlspecialchars((string)$comment['note_title'], ENT_QUOTES, 'UTF-8') ?></h3>
                                             <p class="mb-2 text-secondary small">
                                                 <?= htmlspecialchars((string)($comment['note_course'] ?? '-'), ENT_QUOTES, 'UTF-8') ?>
-                                                • <?= (int)$comment['rating'] ?>/5
+                                                • <?= renderRatingStars((int)$comment['rating']) ?>
                                                 • <?= htmlspecialchars(date('d.m.Y H:i', strtotime((string)$comment['created_at'])), ENT_QUOTES, 'UTF-8') ?>
                                                 <?php if (!empty($comment['note_deleted_at'])): ?>
                                                     • Not arşivde

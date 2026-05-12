@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/includes/db.php';
 require_once __DIR__ . '/includes/storage.php';
 require_once __DIR__ . '/includes/admin_auth.php';
+require_once __DIR__ . '/includes/ratings.php';
 
 $adminUser = requireAdminUser($pdo);
 $csrfToken = adminCsrfToken('admin_panel');
@@ -731,7 +732,7 @@ require __DIR__ . '/includes/header.php';
                                             <?= htmlspecialchars((string)$comment['email'], ENT_QUOTES, 'UTF-8') ?>
                                         </div>
                                     </td>
-                                    <td><?= (int)$comment['rating'] ?>/5</td>
+                                    <td><?= renderRatingStars((int)$comment['rating']) ?></td>
                                     <td class="admin-comment-cell"><?= nl2br(htmlspecialchars((string)$comment['comment'], ENT_QUOTES, 'UTF-8')) ?></td>
                                     <td><?= htmlspecialchars(adminDate((string)$comment['created_at']), ENT_QUOTES, 'UTF-8') ?></td>
                                     <td class="text-end">

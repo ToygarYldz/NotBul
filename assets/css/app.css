@@ -244,6 +244,24 @@ a {
     flex-direction: column;
 }
 
+.note-card-footer {
+    margin-top: auto;
+    min-height: 2.25rem;
+}
+
+.note-card-footer .small {
+    min-width: 0;
+}
+
+.note-card-actions {
+    flex: 0 0 auto;
+    min-height: 2rem;
+}
+
+.note-card-actions .rating-summary {
+    white-space: nowrap;
+}
+
 .note-tags {
     display: flex;
     flex-wrap: wrap;
@@ -403,6 +421,71 @@ a {
     padding: 0.72rem 0.85rem;
 }
 
+.comment-meta {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.42rem;
+    margin-top: 0.16rem;
+}
+
+.rating-summary,
+.rating-stars-wrap,
+.rating-stars {
+    display: inline-flex;
+    align-items: center;
+}
+
+.rating-summary {
+    gap: 0.28rem;
+    width: fit-content;
+    border: 1px solid #f2d79b;
+    border-radius: 999px;
+    background: #fff8e7;
+    color: #73531b;
+    font-size: 0.78rem;
+    font-weight: 700;
+    line-height: 1.2;
+    padding: 0.2rem 0.55rem;
+}
+
+.rating-summary i,
+.rating-stars .fa-solid {
+    color: #e7a822;
+}
+
+.rating-summary-empty {
+    border-color: #d8e3f2;
+    background: #f8fbff;
+    color: #71849d;
+    font-weight: 600;
+}
+
+.rating-count {
+    color: #8a6f35;
+    font-weight: 700;
+}
+
+.rating-stars-wrap {
+    gap: 0.28rem;
+    vertical-align: middle;
+}
+
+.rating-stars {
+    gap: 0.1rem;
+    color: #e7a822;
+    line-height: 1;
+}
+
+.rating-stars .fa-regular {
+    color: #c9d5e5;
+}
+
+.rating-value {
+    color: #53657f;
+    font-weight: 700;
+}
+
 .search-box-inline {
     max-width: 340px;
     width: 100%;
@@ -456,6 +539,14 @@ a {
     justify-content: space-between;
     align-items: center;
     gap: 0.56rem;
+}
+
+.result-stats {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.42rem 0.65rem;
 }
 
 .my-note-item {
