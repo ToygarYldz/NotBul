@@ -55,35 +55,12 @@ a {
 }
 
 .site-header .navbar {
-    --bs-navbar-toggler-icon-bg: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='%232f4764' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2.2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
     background: var(--surface);
     border: 1px solid var(--line);
     border-radius: 10px;
     padding-inline: 0.75rem;
     margin: 0;
     box-shadow: var(--shadow-sm);
-}
-
-.navbar-toggler {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 2.35rem;
-    height: 2.35rem;
-    padding: 0;
-    border-color: var(--line);
-    border-radius: 8px;
-    background: var(--surface-2);
-}
-
-.navbar-toggler:focus {
-    box-shadow: 0 0 0 0.18rem rgba(58, 125, 225, 0.18);
-}
-
-.navbar-toggler-icon {
-    width: 1.18em;
-    height: 1.18em;
-    background-size: 1.18em;
 }
 
 .brand-mark {
@@ -232,6 +209,21 @@ a {
     border-color: #e79aa6;
     background: #fff0f2;
     color: #a72f42;
+}
+
+.mobile-quick-actions {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.34rem;
+    margin-left: auto;
+}
+
+.mobile-quick-actions .header-action-btn {
+    width: 2.08rem;
+    height: 2.08rem;
+    border-radius: 8px;
+    font-size: 0.84rem;
 }
 
 .btn {
@@ -911,10 +903,6 @@ a {
         border-bottom-color: rgba(54, 72, 95, 0.72);
     }
 
-    .site-header .navbar {
-        --bs-navbar-toggler-icon-bg: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='%23dce8f8' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2.2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
-    }
-
     .brand-mark,
     .hero-content h1,
     .section-title,
@@ -923,21 +911,6 @@ a {
     .admin-stat-card strong,
     .note-meta-grid strong {
         color: #f3f7fd;
-    }
-
-    .navbar-toggler {
-        border-color: #3d5067;
-        background: #1a2636;
-    }
-
-    .navbar-toggler:hover,
-    .navbar-toggler:focus {
-        border-color: #5e8dcb;
-        background: #203858;
-    }
-
-    .navbar-toggler:focus {
-        box-shadow: 0 0 0 0.18rem rgba(116, 169, 255, 0.22);
     }
 
     .top-link {

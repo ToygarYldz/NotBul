@@ -58,9 +58,34 @@ $navItems = [
                 <i class="fa-solid fa-book-open-reader brand-icon" aria-hidden="true"></i>
                 <span>Not Bul</span>
             </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav" aria-controls="mainNav" aria-expanded="false" aria-label="Navigasyonu Aç">
-                <span class="navbar-toggler-icon"></span>
-            </button>
+            <div class="mobile-quick-actions d-lg-none" aria-label="Hızlı işlemler">
+                <a class="header-action-btn <?= $pageKey === 'search' ? 'active' : ''; ?>" href="search.php" title="Ders Notu Bul" aria-label="Ders Notu Bul">
+                    <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+                </a>
+                <?php if (isset($_SESSION['user_id'])): ?>
+                    <a class="header-action-btn <?= $pageKey === 'upload' ? 'active' : ''; ?>" href="upload.php" title="Not Yükle" aria-label="Not Yükle">
+                        <i class="fa-solid fa-cloud-arrow-up" aria-hidden="true"></i>
+                    </a>
+                    <a class="header-action-btn <?= in_array($pageKey, ['profile', 'profile_edit'], true) ? 'active' : ''; ?>" href="profile.php" title="Profilim" aria-label="Profilim">
+                        <i class="fa-solid fa-user" aria-hidden="true"></i>
+                    </a>
+                    <?php if (($_SESSION['role'] ?? 'user') === 'admin'): ?>
+                        <a class="header-action-btn <?= $pageKey === 'admin' ? 'active' : ''; ?>" href="admin.php" title="Admin Paneli" aria-label="Admin Paneli">
+                            <i class="fa-solid fa-gauge-high" aria-hidden="true"></i>
+                        </a>
+                    <?php endif; ?>
+                    <a class="header-action-btn header-action-danger" href="logout.php" title="Çıkış Yap" aria-label="Çıkış Yap">
+                        <i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i>
+                    </a>
+                <?php else: ?>
+                    <a class="header-action-btn <?= $pageKey === 'login' ? 'active' : ''; ?>" href="login.php" title="Giriş Yap" aria-label="Giriş Yap">
+                        <i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i>
+                    </a>
+                    <a class="header-action-btn <?= $pageKey === 'register' ? 'active' : ''; ?>" href="register.php" title="Kayıt Ol" aria-label="Kayıt Ol">
+                        <i class="fa-solid fa-user-plus" aria-hidden="true"></i>
+                    </a>
+                <?php endif; ?>
+            </div>
             <div class="collapse navbar-collapse" id="mainNav">
                 <ul class="navbar-nav ms-auto align-items-lg-center gap-lg-2 me-lg-2">
                     <?php foreach ($navItems as $item): ?>
