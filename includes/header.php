@@ -13,25 +13,48 @@ $navItems = [
 <html lang="tr">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="color-scheme" content="light dark">
-    <meta name="theme-color" content="#eef3f8" media="(prefers-color-scheme: light)">
-    <meta name="theme-color" content="#10151f" media="(prefers-color-scheme: dark)">
+    <meta name="theme-color" content="#eef3f8" id="themeColorMeta">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" id="appleStatusBarMeta">
     <script>
         (() => {
             const root = document.documentElement;
+            const themeColorMeta = document.getElementById('themeColorMeta');
+            const appleStatusBarMeta = document.getElementById('appleStatusBarMeta');
+            const themeChrome = {
+                light: {
+                    color: '#eef3f8',
+                    appleStatusBar: 'default'
+                },
+                dark: {
+                    color: '#10151f',
+                    appleStatusBar: 'black'
+                }
+            };
+
+            const setTheme = (theme) => {
+                const chrome = themeChrome[theme] || themeChrome.light;
+                root.dataset.theme = theme;
+                root.dataset.bsTheme = theme;
+
+                if (themeColorMeta) {
+                    themeColorMeta.setAttribute('content', chrome.color);
+                }
+
+                if (appleStatusBarMeta) {
+                    appleStatusBarMeta.setAttribute('content', chrome.appleStatusBar);
+                }
+            };
 
             if (!('matchMedia' in window)) {
-                root.dataset.theme = 'light';
-                root.dataset.bsTheme = 'light';
+                setTheme('light');
                 return;
             }
 
             const themeQuery = window.matchMedia('(prefers-color-scheme: dark)');
             const syncTheme = () => {
-                const theme = themeQuery.matches ? 'dark' : 'light';
-                root.dataset.theme = theme;
-                root.dataset.bsTheme = theme;
+                setTheme(themeQuery.matches ? 'dark' : 'light');
             };
 
             syncTheme();
