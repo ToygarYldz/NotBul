@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/includes/db.php';
+require_once __DIR__ . '/includes/user_notifications.php';
 
 $status = 'danger';
 $message = 'Geçersiz doğrulama bağlantısı.';
@@ -12,7 +13,7 @@ if ($token !== '' && preg_match('/^[a-f0-9]{64}$/', $token) === 1) {
     $tokenHash = hash('sha256', $token);
 
     $stmt = $pdo->prepare(
-        "SELECT id, email_verification_token_expires_at
+        "SELECT id, first_name, last_name, email, email_verification_token_expires_at
          FROM users
          WHERE email_verification_token = :token
            AND verified = 0
@@ -50,6 +51,12 @@ if ($token !== '' && preg_match('/^[a-f0-9]{64}$/', $token) === 1) {
             if ($updateStmt->rowCount() === 1) {
                 $status = 'success';
                 $message = 'E-posta adresin başarıyla doğrulandı. Artık giriş yapabilirsin.';
+                sendUserSecurityNotification($user, 'E-posta adresiniz doğrulandı', 'Not Bul hesabınızın e-posta adresi başarıyla doğrulandı.', [
+                    'İşlem' => 'E-posta doğrulama',
+                    'Zaman' => date('d.m.Y H:i:s'),
+                ], [
+                    'Giriş Yap' => userNotificationUrl('login.php'),
+                ]);
             } else {
                 $status = 'warning';
                 $message = 'Hesap zaten doğrulanmış olabilir. Giriş yapmayı deneyebilirsin.';

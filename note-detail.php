@@ -5,6 +5,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/includes/ratings.php';
 require_once __DIR__ . '/includes/admin_notifications.php';
+require_once __DIR__ . '/includes/user_notifications.php';
 
 function resolveDepartmentName(string $departmentId): string
 {
@@ -239,13 +240,19 @@ if ($requestMethod === 'POST' && ($_POST['action'] ?? '') === 'add_comment') {
                         n.title AS note_title,
                         n.course AS note_course,
                         n.topic AS note_topic,
+                        n.user_id AS note_owner_id,
                         n.deleted_at AS note_deleted_at,
                         u.first_name,
                         u.last_name,
-                        u.email
+                        u.email,
+                        owner.first_name AS owner_first_name,
+                        owner.last_name AS owner_last_name,
+                        owner.email AS owner_email,
+                        owner.comment_email_notifications AS owner_comment_email_notifications
                     FROM note_comments nc
                     JOIN notes n ON n.id = nc.note_id
                     JOIN users u ON u.id = nc.user_id
+                    JOIN users owner ON owner.id = n.user_id
                     WHERE nc.id = :id
                     LIMIT 1
                 ");
@@ -266,8 +273,31 @@ if ($requestMethod === 'POST' && ($_POST['action'] ?? '') === 'add_comment') {
                         'Yorum Yönetimi' => adminNotificationUrl('admin.php#comments'),
                     ]);
                 }
+
+                if (
+                    (int)($newComment['note_owner_id'] ?? 0) !== (int)$newComment['user_id']
+                    && (int)($newComment['owner_comment_email_notifications'] ?? 1) === 1
+                ) {
+                    sendUserNotificationEmail(
+                        (string)$newComment['owner_email'],
+                        trim((string)$newComment['owner_first_name'] . ' ' . (string)$newComment['owner_last_name']),
+                        'Notunuza yeni yorum yapıldı',
+                        'Yüklediğiniz bir nota yeni yorum ve puan eklendi.',
+                        [
+                            'Not' => (string)$newComment['note_title'],
+                            'Yorum yapan' => adminNotificationUserLabel($newComment),
+                            'Puan' => (int)$newComment['rating'] . '/5',
+                            'Yorum' => (string)$newComment['comment'],
+                        ],
+                        [
+                            'Yorumu Gör' => userNotificationUrl('note-detail.php?id=' . (int)$newComment['note_id'] . '#comments'),
+                            'Bildirim Ayarları' => userNotificationUrl('profile_edit.php'),
+                        ],
+                        'not yorumu bildirimi'
+                    );
+                }
             } catch (Throwable $e) {
-                error_log('note-detail admin notification prep error: ' . $e->getMessage());
+                error_log('note-detail comment notification prep error: ' . $e->getMessage());
             }
 
             header("Location: note-detail.php?id=$id&comment_added=1");

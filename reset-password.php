@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/includes/db.php';
+require_once __DIR__ . '/includes/user_notifications.php';
 
 $error = '';
 $token = trim((string) ($_GET['token'] ?? $_POST['token'] ?? ''));
@@ -13,7 +14,7 @@ if ($token !== '' && preg_match('/^[a-f0-9]{64}$/', $token) === 1) {
     $tokenHash = hash('sha256', $token);
 
     $stmt = $pdo->prepare(
-        "SELECT id, password_reset_token_expires_at
+        "SELECT id, first_name, last_name, email, password_reset_token_expires_at
          FROM users
          WHERE password_reset_token = :token
          LIMIT 1"
@@ -65,6 +66,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ]);
 
             if ($updateStmt->rowCount() === 1) {
+                sendUserSecurityNotification($user, 'Şifreniz sıfırlandı', 'Not Bul hesabınızın şifresi sıfırlama bağlantısı kullanılarak güncellendi.', [
+                    'İşlem' => 'Şifre sıfırlama',
+                    'Zaman' => date('d.m.Y H:i:s'),
+                ], [
+                    'Giriş Yap' => userNotificationUrl('login.php'),
+                ]);
+
                 header('Location: login.php?reset=success');
                 exit;
             }

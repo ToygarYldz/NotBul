@@ -10,7 +10,7 @@ function requireAdminUser(PDO $pdo): array
         exit;
     }
 
-    $stmt = $pdo->prepare("SELECT id, first_name, last_name, email, role, verified, admin_email_notifications FROM users WHERE id = :id LIMIT 1");
+    $stmt = $pdo->prepare("SELECT id, first_name, last_name, email, role, verified, admin_email_notifications, admin_action_user_notifications FROM users WHERE id = :id LIMIT 1");
     $stmt->execute(['id' => (int)$_SESSION['user_id']]);
     $user = $stmt->fetch();
 

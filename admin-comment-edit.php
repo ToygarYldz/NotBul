@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/includes/db.php';
 require_once __DIR__ . '/includes/admin_auth.php';
 require_once __DIR__ . '/includes/admin_notifications.php';
+require_once __DIR__ . '/includes/user_notifications.php';
 
 $adminUser = requireAdminUser($pdo);
 $csrfToken = adminCsrfToken('admin_comment_edit');
@@ -127,6 +128,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'Yorumu Düzenle' => adminNotificationUrl('admin-comment-edit.php?id=' . $commentId),
                         'Yorum Yönetimi' => adminNotificationUrl('admin.php#comments'),
                     ]);
+                    sendAdminActionUserNotification($adminUser, $commentBefore, 'Yorumunuz admin tarafından güncellendi', 'Bir nota yaptığınız yorum admin tarafından güncellendi.', [
+                        'Not' => (string)$commentBefore['note_title'],
+                        'Puan değişimi' => (int)$commentBefore['rating'] . '/5' . "\n=> " . $rating . '/5',
+                        'Yorum değişimi' => (string)$commentBefore['comment'] . "\n=> " . $commentText,
+                    ], [
+                        'Profilim' => userNotificationUrl('profile.php#comments'),
+                    ]);
                     adminSetFlash('success', 'Yorum güncellendi.');
                 }
                 adminCommentRedirectToComment($commentId);
@@ -189,6 +197,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'Yorum metni' => (string)$commentBefore['comment'],
                 ], [
                     'Yorum Yönetimi' => adminNotificationUrl('admin.php#comments'),
+                ]);
+                sendAdminActionUserNotification($adminUser, $commentBefore, 'Yorumunuz silindi', 'Bir nota yaptığınız yorum admin tarafından kalıcı olarak silindi.', [
+                    'Not' => (string)$commentBefore['note_title'],
+                    'Puan' => (int)$commentBefore['rating'] . '/5',
+                    'Yorum metni' => (string)$commentBefore['comment'],
+                ], [
+                    'Profilim' => userNotificationUrl('profile.php#comments'),
                 ]);
                 adminSetFlash('success', 'Yorum kalıcı olarak silindi.');
             }

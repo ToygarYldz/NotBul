@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/includes/db.php';
 require_once __DIR__ . '/includes/storage.php';
+require_once __DIR__ . '/includes/user_notifications.php';
 @session_start();
 
 if (!isset($_SESSION['user_id'])) {
@@ -24,7 +25,7 @@ if ($profileEditToken === '') {
     $_SESSION['csrf_token_profile_edit'] = $profileEditToken;
 }
 
-$stmt = $pdo->prepare("SELECT id, first_name, last_name, email, password FROM users WHERE id = :id");
+$stmt = $pdo->prepare("SELECT id, first_name, last_name, email, password, comment_email_notifications FROM users WHERE id = :id");
 $stmt->execute(['id' => $userId]);
 $user = $stmt->fetch();
 
@@ -65,6 +66,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $error = 'Güncelleme sırasında beklenmeyen bir hata oluştu.';
             }
         }
+    } elseif ($action === 'update_notifications') {
+        $commentEmailNotifications = (string)($_POST['comment_email_notifications'] ?? '0') === '1' ? 1 : 0;
+
+        try {
+            $stmt = $pdo->prepare("
+                UPDATE users
+                SET comment_email_notifications = :comment_email_notifications
+                WHERE id = :uid
+                LIMIT 1
+            ");
+            $stmt->execute([
+                'comment_email_notifications' => $commentEmailNotifications,
+                'uid' => $userId,
+            ]);
+
+            $user['comment_email_notifications'] = $commentEmailNotifications;
+            $success = 'Bildirim ayarlarınız güncellendi.';
+        } catch (PDOException $e) {
+            error_log('profile_edit update notifications error: ' . $e->getMessage());
+            $error = 'Bildirim ayarları güncellenirken beklenmeyen bir hata oluştu.';
+        }
     } elseif ($action === 'change_password') {
         $currentPassword = (string)($_POST['current_password'] ?? '');
         $newPassword = (string)($_POST['new_password'] ?? '');
@@ -96,6 +118,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 $user['password'] = $passwordHash;
                 $success = 'Şifreniz başarıyla güncellendi.';
+                sendUserSecurityNotification($user, 'Şifreniz güncellendi', 'Not Bul hesabınızın şifresi profil ayarlarınızdan değiştirildi.', [
+                    'İşlem' => 'Şifre değişikliği',
+                    'Zaman' => date('d.m.Y H:i:s'),
+                ], [
+                    'Profil Ayarları' => userNotificationUrl('profile_edit.php'),
+                ]);
             } catch (PDOException $e) {
                 error_log('profile_edit change password error: ' . $e->getMessage());
                 $error = 'Şifre güncellenirken beklenmeyen bir hata oluştu.';
@@ -130,6 +158,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 foreach (deleteNotesStorageFiles($notesToDelete) as $warning) {
                     error_log('profile_edit delete account file warning: ' . $warning);
                 }
+
+                sendUserSecurityNotification($user, 'Hesabınız silindi', 'Not Bul hesabınız talebiniz üzerine kalıcı olarak silindi.', [
+                    'İşlem' => 'Hesap silme',
+                    'Zaman' => date('d.m.Y H:i:s'),
+                ]);
 
                 $_SESSION = [];
                 if (ini_get('session.use_cookies')) {
@@ -192,6 +225,39 @@ require __DIR__ . '/includes/header.php';
                         </div>
                         <div class="d-grid gap-2">
                             <button type="submit" class="btn btn-primary"><i class="fa-solid fa-save"></i> Değişiklikleri Kaydet</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="panel-card mt-4">
+                    <h2 class="h4 mb-3">Bildirim Ayarları</h2>
+                    <form action="profile_edit.php" method="POST">
+                        <input type="hidden" name="action" value="update_notifications">
+                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($profileEditToken, ENT_QUOTES, 'UTF-8') ?>">
+                        <input type="hidden" name="comment_email_notifications" value="0">
+                        <div class="form-check form-switch mb-3">
+                            <input
+                                class="form-check-input"
+                                type="checkbox"
+                                role="switch"
+                                id="commentEmailNotifications"
+                                name="comment_email_notifications"
+                                value="1"
+                                <?= (int)($user['comment_email_notifications'] ?? 1) === 1 ? 'checked' : '' ?>
+                            >
+                            <label class="form-check-label" for="commentEmailNotifications">
+                                Notlarıma yorum yapıldığında e-posta gönder
+                            </label>
+                        </div>
+                        <div class="form-check form-switch mb-4">
+                            <input class="form-check-input" type="checkbox" role="switch" id="securityEmailNotifications" checked disabled>
+                            <label class="form-check-label" for="securityEmailNotifications">
+                                Hesap güvenliği bildirimleri
+                            </label>
+                            <div class="form-text">Şifre sıfırlama, şifre değişikliği ve kritik hesap işlemleri için güvenlik bildirimleri her zaman açıktır.</div>
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-outline-primary"><i class="fa-solid fa-bell"></i> Bildirim Ayarlarını Kaydet</button>
                         </div>
                     </form>
                 </div>

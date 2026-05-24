@@ -6,6 +6,7 @@ require_once __DIR__ . '/includes/storage.php';
 require_once __DIR__ . '/includes/admin_auth.php';
 require_once __DIR__ . '/includes/ratings.php';
 require_once __DIR__ . '/includes/admin_notifications.php';
+require_once __DIR__ . '/includes/user_notifications.php';
 
 $adminUser = requireAdminUser($pdo);
 $csrfToken = adminCsrfToken('admin_panel');
@@ -153,21 +154,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         if ($action === 'update_admin_notifications') {
             $enabled = (string)($_POST['admin_email_notifications'] ?? '0') === '1' ? 1 : 0;
+            $adminActionUserNotifications = (string)($_POST['admin_action_user_notifications'] ?? '0') === '1' ? 1 : 0;
 
             $updateStmt = $pdo->prepare("
                 UPDATE users
-                SET admin_email_notifications = :enabled
+                SET admin_email_notifications = :enabled,
+                    admin_action_user_notifications = :admin_action_user_notifications
                 WHERE id = :id
                   AND role = 'admin'
                 LIMIT 1
             ");
             $updateStmt->execute([
                 'enabled' => $enabled,
+                'admin_action_user_notifications' => $adminActionUserNotifications,
                 'id' => (int)$adminUser['id'],
             ]);
 
             $adminUser['admin_email_notifications'] = $enabled;
-            adminSetFlash('success', $enabled === 1 ? 'Kişisel admin mail bildirimleri açıldı.' : 'Kişisel admin mail bildirimleri kapatıldı.');
+            $adminUser['admin_action_user_notifications'] = $adminActionUserNotifications;
+            adminSetFlash('success', 'Admin bildirim ayarları güncellendi.');
             adminRedirect('settings');
         }
 
@@ -209,6 +214,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'Yeni rol' => $nextRole,
                 ], [
                     'Kullanıcı Yönetimi' => adminNotificationUrl('admin.php#users'),
+                ]);
+                sendAdminActionUserNotification($adminUser, $targetUser, 'Hesap rolünüz güncellendi', 'Not Bul hesabınızın rolü bir admin tarafından güncellendi.', [
+                    'Önceki rol' => (string)($targetUser['role'] ?? 'user'),
+                    'Yeni rol' => $nextRole,
+                ], [
+                    'Profilim' => userNotificationUrl('profile.php'),
                 ]);
             }
 
@@ -268,6 +279,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'Yeni durum' => $verified === 1 ? 'Doğrulanmış' : 'Doğrulanmamış',
                 ], [
                     'Kullanıcı Yönetimi' => adminNotificationUrl('admin.php#users'),
+                ]);
+                sendAdminActionUserNotification($adminUser, $targetUser, 'Hesap doğrulama durumunuz güncellendi', 'Not Bul hesabınızın doğrulama durumu bir admin tarafından güncellendi.', [
+                    'Önceki durum' => (int)$targetUser['verified'] === 1 ? 'Doğrulanmış' : 'Doğrulanmamış',
+                    'Yeni durum' => $verified === 1 ? 'Doğrulanmış' : 'Doğrulanmamış',
+                ], [
+                    'Profilim' => userNotificationUrl('profile.php'),
                 ]);
             }
 
@@ -330,6 +347,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'Dosya uyarıları' => empty($fileWarnings) ? 'Yok' : implode("\n", $fileWarnings),
             ], [
                 'Kullanıcı Yönetimi' => adminNotificationUrl('admin.php#users'),
+            ]);
+            sendAdminActionUserNotification($adminUser, $targetUser, 'Hesabınız silindi', 'Not Bul hesabınız bir admin tarafından kalıcı olarak silindi.', [
+                'İşlem' => 'Admin hesap silme',
+                'Silinen not sayısı' => count($notesToDelete),
+                'Kullanıcının yorum sayısı' => $commentCount,
             ]);
 
             if ($targetUserId === (int)$adminUser['id']) {
@@ -396,6 +418,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ], [
                 'Not Yönetimi' => adminNotificationUrl('admin.php#notes'),
             ]);
+            sendAdminActionUserNotification($adminUser, $note, 'Notunuz silindi', 'Yüklediğiniz bir not admin tarafından kalıcı olarak silindi.', [
+                'Not' => (string)$note['title'],
+                'Ders' => (string)($note['course'] ?? '-'),
+                'Konu' => (string)($note['topic'] ?? '-'),
+                'Dosya' => (string)$note['original_filename'],
+            ], [
+                'Profilim' => userNotificationUrl('profile.php'),
+            ]);
             adminRedirect('notes');
         }
 
@@ -452,6 +482,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'Yorum metni' => (string)$comment['comment'],
             ], [
                 'Yorum Yönetimi' => adminNotificationUrl('admin.php#comments'),
+            ]);
+            sendAdminActionUserNotification($adminUser, $comment, 'Yorumunuz silindi', 'Bir nota yaptığınız yorum admin tarafından kalıcı olarak silindi.', [
+                'Not' => (string)$comment['note_title'],
+                'Puan' => (int)$comment['rating'] . '/5',
+                'Yorum' => (string)$comment['comment'],
+            ], [
+                'Profilim' => userNotificationUrl('profile.php#comments'),
             ]);
             adminRedirect('comments');
         }
@@ -527,6 +564,7 @@ $users = $usersStmt->fetchAll();
 $userEmailCopyValue = adminEmailList($users);
 $adminEmailCopyValue = adminEmailList($users, 'admin');
 $isAdminNotificationsEnabled = (int)($adminUser['admin_email_notifications'] ?? 0) === 1;
+$isAdminActionUserNotificationsEnabled = (int)($adminUser['admin_action_user_notifications'] ?? 0) === 1;
 
 $notesStmt = $pdo->query("
     SELECT
@@ -673,6 +711,7 @@ require __DIR__ . '/includes/header.php';
                     <input type="hidden" name="action" value="update_admin_notifications">
                     <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
                     <input type="hidden" name="admin_email_notifications" value="0">
+                    <input type="hidden" name="admin_action_user_notifications" value="0">
                     <div class="form-check form-switch admin-notify-switch">
                         <input
                             class="form-check-input"
@@ -685,6 +724,20 @@ require __DIR__ . '/includes/header.php';
                         >
                         <label class="form-check-label" for="adminEmailNotifications">
                             Kişisel mail bildirimi
+                        </label>
+                    </div>
+                    <div class="form-check form-switch admin-notify-switch">
+                        <input
+                            class="form-check-input"
+                            type="checkbox"
+                            role="switch"
+                            id="adminActionUserNotifications"
+                            name="admin_action_user_notifications"
+                            value="1"
+                            <?= $isAdminActionUserNotificationsEnabled ? 'checked' : '' ?>
+                        >
+                        <label class="form-check-label" for="adminActionUserNotifications">
+                            Kullanıcı ile ilgili yaptığım değişiklikler kullanıcıya bildirilsin
                         </label>
                     </div>
                     <button class="btn btn-sm btn-primary" type="submit">Kaydet</button>

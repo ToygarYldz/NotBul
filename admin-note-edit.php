@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/includes/db.php';
 require_once __DIR__ . '/includes/admin_auth.php';
 require_once __DIR__ . '/includes/admin_notifications.php';
+require_once __DIR__ . '/includes/user_notifications.php';
 
 $adminUser = requireAdminUser($pdo);
 $csrfToken = adminCsrfToken('admin_note_edit');
@@ -240,6 +241,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ], [
                 'Notu Düzenle' => adminNotificationUrl('admin-note-edit.php?id=' . $noteId),
                 'Not Yönetimi' => adminNotificationUrl('admin.php#notes'),
+            ]);
+            sendAdminActionUserNotification($adminUser, $noteBefore, 'Notunuz admin tarafından güncellendi', 'Yüklediğiniz bir notun bilgileri admin tarafından güncellendi.', [
+                'Başlık değişimi' => (string)$noteBefore['title'] . "\n=> " . $title,
+                'Ders değişimi' => (string)($noteBefore['course'] ?? '-') . "\n=> " . ($course ?? '-'),
+                'Konu değişimi' => (string)($noteBefore['topic'] ?? '-') . "\n=> " . ($topic ?? '-'),
+                'Durum değişimi' => (string)$noteBefore['upload_status'] . ' / ' . (string)$noteBefore['scan_status'] . "\n=> " . $uploadStatus . ' / ' . $scanStatus,
+            ], [
+                'Profilim' => userNotificationUrl('profile.php'),
             ]);
 
             adminSetFlash('success', 'Not detayları güncellendi.');
