@@ -63,6 +63,7 @@ function buildBrandedEmailHtml(
     $safeExpiryText = htmlspecialchars($expiryText, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
     $safeSecurityText = htmlspecialchars($securityText, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
     $safePreheader = htmlspecialchars($title . ' ' . $expiryText, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    $safeFaviconUrl = htmlspecialchars(buildEmailAssetUrl('assets/icons/favicon.svg'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 
     return <<<HTML
 <!doctype html>
@@ -88,8 +89,8 @@ function buildBrandedEmailHtml(
                                     <td style="vertical-align:middle;">
                                         <table role="presentation" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
                                             <tr>
-                                                <td align="center" width="44" height="44" style="width:44px; height:44px; border-radius:12px; background:#3a7de1; background-image:linear-gradient(180deg, #4f92f0 0%, #3478da 100%); color:#ffffff; font-family:Arial, Helvetica, sans-serif; font-size:16px; font-weight:800;">
-                                                    NB
+                                                <td align="center" width="44" height="44" style="width:44px; height:44px; border:1px solid #cbe0ff; border-radius:12px; background:#eef5ff;">
+                                                    <img src="{$safeFaviconUrl}" width="26" height="26" alt="Not Bul" style="display:block; width:26px; height:26px; border:0; outline:none; text-decoration:none;">
                                                 </td>
                                                 <td style="padding-left:12px;">
                                                     <div style="font-family:'Sora', Arial, Helvetica, sans-serif; font-size:18px; line-height:1.2; font-weight:800; color:#223247;">Not Bul</div>
@@ -166,6 +167,11 @@ function buildBrandedEmailHtml(
 </body>
 </html>
 HTML;
+}
+
+function buildEmailAssetUrl(string $path): string
+{
+    return buildAppBaseUrl() . '/' . ltrim($path, '/');
 }
 
 function buildAppBaseUrl(): string
