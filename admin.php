@@ -7,6 +7,7 @@ require_once __DIR__ . '/includes/admin_auth.php';
 require_once __DIR__ . '/includes/ratings.php';
 require_once __DIR__ . '/includes/admin_notifications.php';
 require_once __DIR__ . '/includes/user_notifications.php';
+require_once __DIR__ . '/includes/admin_suggested_actions.php';
 
 $adminUser = requireAdminUser($pdo);
 $csrfToken = adminCsrfToken('admin_panel');
@@ -141,6 +142,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $requestToken = (string)($_POST['csrf_token'] ?? '');
     $redirectSection = match ($action) {
         'update_admin_notifications' => 'settings',
+        'delete_stale_unverified_users', 'dismiss_suggested_action' => 'suggested-actions',
         'delete_note' => 'notes',
         'delete_comment' => 'comments',
         default => 'users',
@@ -155,11 +157,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($action === 'update_admin_notifications') {
             $enabled = (string)($_POST['admin_email_notifications'] ?? '0') === '1' ? 1 : 0;
             $adminActionUserNotifications = (string)($_POST['admin_action_user_notifications'] ?? '0') === '1' ? 1 : 0;
+            $adminSuggestedActionNotifications = (string)($_POST['admin_suggested_action_notifications'] ?? '0') === '1' ? 1 : 0;
 
             $updateStmt = $pdo->prepare("
                 UPDATE users
                 SET admin_email_notifications = :enabled,
-                    admin_action_user_notifications = :admin_action_user_notifications
+                    admin_action_user_notifications = :admin_action_user_notifications,
+                    admin_suggested_action_notifications = :admin_suggested_action_notifications
                 WHERE id = :id
                   AND role = 'admin'
                 LIMIT 1
@@ -167,13 +171,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $updateStmt->execute([
                 'enabled' => $enabled,
                 'admin_action_user_notifications' => $adminActionUserNotifications,
+                'admin_suggested_action_notifications' => $adminSuggestedActionNotifications,
                 'id' => (int)$adminUser['id'],
             ]);
 
             $adminUser['admin_email_notifications'] = $enabled;
             $adminUser['admin_action_user_notifications'] = $adminActionUserNotifications;
+            $adminUser['admin_suggested_action_notifications'] = $adminSuggestedActionNotifications;
             adminSetFlash('success', 'Admin bildirim ayarları güncellendi.');
             adminRedirect('settings');
+        }
+
+        if ($action === 'dismiss_suggested_action') {
+            $actionKey = (string)($_POST['action_key'] ?? '');
+            adminDismissSuggestedAction($pdo, $actionKey);
+            adminSetFlash('success', 'Önerilen eylem 7 gün ertelendi.');
+            adminRedirect('suggested-actions');
+        }
+
+        if ($action === 'delete_stale_unverified_users') {
+            $candidateCount = adminStaleUnverifiedUserCount($pdo);
+            $deletedCount = adminDeleteStaleUnverifiedUsers($pdo);
+
+            if ($deletedCount > 0) {
+                sendAdminNotification($pdo, 'Önerilen eylem uygulandı', 'Doğrulanmamış eski ve içeriksiz kullanıcı hesapları admin onayıyla silindi.', [
+                    'İşlem yapan admin' => adminNotificationAdminLabel($adminUser),
+                    'İşlem öncesi aday sayısı' => $candidateCount,
+                    'Silinen hesap sayısı' => $deletedCount,
+                ], [
+                    'Kullanıcı Yönetimi' => adminNotificationUrl('admin.php#users'),
+                ]);
+                adminSetFlash('success', adminFormatNumber($deletedCount) . ' doğrulanmamış eski hesap kaldırıldı.');
+            } else {
+                adminSetFlash('warning', 'Silinecek uygun hesap bulunamadı. Öneri güncellenmiş olabilir.');
+            }
+
+            adminRedirect('suggested-actions');
         }
 
         if ($action === 'update_user_role') {
@@ -565,6 +598,8 @@ $userEmailCopyValue = adminEmailList($users);
 $adminEmailCopyValue = adminEmailList($users, 'admin');
 $isAdminNotificationsEnabled = (int)($adminUser['admin_email_notifications'] ?? 0) === 1;
 $isAdminActionUserNotificationsEnabled = (int)($adminUser['admin_action_user_notifications'] ?? 0) === 1;
+$isAdminSuggestedActionNotificationsEnabled = adminSuggestedActionNotificationPreference($pdo, (int)$adminUser['id']);
+$suggestedAction = adminSyncSuggestedActions($pdo);
 
 $notesStmt = $pdo->query("
     SELECT
@@ -634,6 +669,7 @@ require __DIR__ . '/includes/header.php';
             </div>
             <div class="d-flex flex-wrap gap-2">
                 <a class="btn btn-sm btn-outline-primary" href="#settings"><i class="fa-solid fa-sliders me-1"></i>Admin Ayarları</a>
+                <a class="btn btn-sm btn-outline-primary" href="#suggested-actions"><i class="fa-solid fa-wand-magic-sparkles me-1"></i>Önerilen Eylemler</a>
                 <a class="btn btn-sm btn-outline-primary" href="#users"><i class="fa-solid fa-users me-1"></i>Kullanıcılar</a>
                 <a class="btn btn-sm btn-outline-primary" href="#notes"><i class="fa-solid fa-file-lines me-1"></i>Notlar</a>
                 <a class="btn btn-sm btn-outline-primary" href="#comments"><i class="fa-solid fa-comments me-1"></i>Yorumlar</a>
@@ -712,6 +748,7 @@ require __DIR__ . '/includes/header.php';
                     <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
                     <input type="hidden" name="admin_email_notifications" value="0">
                     <input type="hidden" name="admin_action_user_notifications" value="0">
+                    <input type="hidden" name="admin_suggested_action_notifications" value="0">
                     <div class="form-check form-switch admin-notify-switch">
                         <input
                             class="form-check-input"
@@ -740,9 +777,110 @@ require __DIR__ . '/includes/header.php';
                             Kullanıcı ile ilgili yaptığım değişiklikler kullanıcıya bildirilsin
                         </label>
                     </div>
+                    <div class="form-check form-switch admin-notify-switch">
+                        <input
+                            class="form-check-input"
+                            type="checkbox"
+                            role="switch"
+                            id="adminSuggestedActionNotifications"
+                            name="admin_suggested_action_notifications"
+                            value="1"
+                            <?= $isAdminSuggestedActionNotificationsEnabled ? 'checked' : '' ?>
+                        >
+                        <label class="form-check-label" for="adminSuggestedActionNotifications">
+                            Önerilen eylem bildirimleri
+                        </label>
+                    </div>
                     <button class="btn btn-sm btn-primary" type="submit">Kaydet</button>
                 </form>
             </div>
+        </div>
+
+        <div id="suggested-actions" class="panel-card mt-4">
+            <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
+                <div>
+                    <h2 class="h4 mb-1">Önerilen Eylemler</h2>
+                    <p class="mb-0 text-secondary">Admin onayı gerektiren bakım önerileri.</p>
+                </div>
+                <?php if ($suggestedAction): ?>
+                    <span class="badge bg-warning text-dark"><?= adminFormatNumber((int)$suggestedAction['candidate_count']) ?> aday</span>
+                <?php endif; ?>
+            </div>
+
+            <?php if (!$suggestedAction): ?>
+                <div class="empty-state">Şu anda önerilen eylem bulunmuyor.</div>
+            <?php else: ?>
+                <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
+                    <div>
+                        <h3 class="h5 mb-1">Doğrulanmamış eski hesapları temizle</h3>
+                        <p class="mb-0 text-secondary">
+                            <?= (int)$suggestedAction['threshold_hours'] ?>+ saattir doğrulanmamış, normal kullanıcı rolünde olan ve not/yorum içermeyen hesaplar kaldırılabilir.
+                        </p>
+                    </div>
+                    <div class="d-flex gap-2 flex-wrap">
+                        <form
+                            method="POST"
+                            action="admin.php#suggested-actions"
+                            onsubmit="return confirm('<?= adminFormatNumber((int)$suggestedAction['candidate_count']) ?> uygun hesap kalıcı olarak silinecek. Devam edilsin mi?') && confirm('İkinci onay: Bu işlem geri alınamaz. Uygun hesapları silmek istediğinizden emin misiniz?');"
+                        >
+                            <input type="hidden" name="action" value="delete_stale_unverified_users">
+                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                            <button class="btn btn-sm btn-outline-danger" type="submit">Hesapları kaldır</button>
+                        </form>
+                        <form method="POST" action="admin.php#suggested-actions">
+                            <input type="hidden" name="action" value="dismiss_suggested_action">
+                            <input type="hidden" name="action_key" value="<?= htmlspecialchars(ADMIN_SUGGESTED_ACTION_DELETE_STALE_USERS, ENT_QUOTES, 'UTF-8') ?>">
+                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                            <button class="btn btn-sm btn-outline-secondary" type="submit">7 gün ertele</button>
+                        </form>
+                    </div>
+                </div>
+
+                <?php if (!empty($suggestedAction['candidates'])): ?>
+                    <div class="table-responsive">
+                        <table class="table admin-table align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Kullanıcı</th>
+                                    <th>E-posta</th>
+                                    <th>Kayıt</th>
+                                    <th>Zaman</th>
+                                    <th>Doğrulama linki</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($suggestedAction['candidates'] as $candidate): ?>
+                                    <?php $candidateName = adminFullName($candidate); ?>
+                                    <tr>
+                                        <td><?= (int)$candidate['id'] ?></td>
+                                        <td>
+                                            <span class="admin-copy-line">
+                                                <strong><?= htmlspecialchars($candidateName, ENT_QUOTES, 'UTF-8') ?></strong>
+                                                <?= adminCopyButton($candidateName, 'Aday kullanıcı adını kopyala') ?>
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span class="admin-copy-line">
+                                                <span><?= htmlspecialchars((string)$candidate['email'], ENT_QUOTES, 'UTF-8') ?></span>
+                                                <?= adminCopyButton((string)$candidate['email'], 'Aday e-postasını kopyala') ?>
+                                            </span>
+                                        </td>
+                                        <td><?= htmlspecialchars(adminDate((string)$candidate['created_at']), ENT_QUOTES, 'UTF-8') ?></td>
+                                        <td><?= adminFormatNumber((int)$candidate['age_hours']) ?> saat</td>
+                                        <td><?= htmlspecialchars(adminDate((string)($candidate['email_verification_token_expires_at'] ?? '')), ENT_QUOTES, 'UTF-8') ?></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                    <?php if ((int)$suggestedAction['candidate_count'] > count($suggestedAction['candidates'])): ?>
+                        <p class="small text-secondary mt-2 mb-0">
+                            İlk <?= adminFormatNumber(count($suggestedAction['candidates'])) ?> aday gösteriliyor; işlem tüm uygun adaylara uygulanır.
+                        </p>
+                    <?php endif; ?>
+                <?php endif; ?>
+            <?php endif; ?>
         </div>
 
         <div class="panel-card mt-4">

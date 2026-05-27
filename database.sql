@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS users (
     admin_email_notifications TINYINT(1) NOT NULL DEFAULT 0,
     comment_email_notifications TINYINT(1) NOT NULL DEFAULT 1,
     admin_action_user_notifications TINYINT(1) NOT NULL DEFAULT 0,
+    admin_suggested_action_notifications TINYINT(1) NOT NULL DEFAULT 1,
     email_verification_token CHAR(64) NULL,
     email_verification_token_expires_at DATETIME NULL,
     password_reset_token CHAR(64) NULL,
@@ -28,6 +29,7 @@ ALTER TABLE users
     ADD COLUMN IF NOT EXISTS admin_email_notifications TINYINT(1) NOT NULL DEFAULT 0 AFTER role,
     ADD COLUMN IF NOT EXISTS comment_email_notifications TINYINT(1) NOT NULL DEFAULT 1 AFTER admin_email_notifications,
     ADD COLUMN IF NOT EXISTS admin_action_user_notifications TINYINT(1) NOT NULL DEFAULT 0 AFTER comment_email_notifications,
+    ADD COLUMN IF NOT EXISTS admin_suggested_action_notifications TINYINT(1) NOT NULL DEFAULT 1 AFTER admin_action_user_notifications,
     ADD COLUMN IF NOT EXISTS email_verification_token CHAR(64) NULL AFTER role,
     ADD COLUMN IF NOT EXISTS email_verification_token_expires_at DATETIME NULL AFTER email_verification_token,
     ADD COLUMN IF NOT EXISTS password_reset_token CHAR(64) NULL AFTER email_verification_token_expires_at,
@@ -44,8 +46,38 @@ WHERE verified = 0
 CREATE INDEX IF NOT EXISTS idx_users_verified ON users(verified);
 CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
 CREATE INDEX IF NOT EXISTS idx_users_admin_email_notifications ON users(role, admin_email_notifications);
+CREATE INDEX IF NOT EXISTS idx_users_admin_suggested_action_notifications ON users(role, admin_suggested_action_notifications);
 CREATE INDEX IF NOT EXISTS idx_users_email_verification_token ON users(email_verification_token);
 CREATE INDEX IF NOT EXISTS idx_users_password_reset_token ON users(password_reset_token);
+
+CREATE TABLE IF NOT EXISTS registration_attempts (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    ip_hash CHAR(64) NOT NULL,
+    email_hash CHAR(64) NULL,
+    result VARCHAR(64) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_registration_attempts_ip_created ON registration_attempts(ip_hash, created_at);
+CREATE INDEX IF NOT EXISTS idx_registration_attempts_email_created ON registration_attempts(email_hash, created_at);
+CREATE INDEX IF NOT EXISTS idx_registration_attempts_result_created ON registration_attempts(result, created_at);
+
+CREATE TABLE IF NOT EXISTS admin_suggested_actions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    action_key VARCHAR(64) NOT NULL UNIQUE,
+    status ENUM('active', 'dismissed', 'resolved') NOT NULL DEFAULT 'active',
+    title VARCHAR(160) NOT NULL,
+    candidate_count INT UNSIGNED NOT NULL DEFAULT 0,
+    payload_json LONGTEXT NULL,
+    last_notified_at DATETIME NULL,
+    dismissed_until DATETIME NULL,
+    resolved_at DATETIME NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_admin_suggested_actions_status ON admin_suggested_actions(status);
+CREATE INDEX IF NOT EXISTS idx_admin_suggested_actions_dismissed_until ON admin_suggested_actions(dismissed_until);
 
 -- First admin account setup:
 -- 1) Create a normal user through the app or insert one manually with a password_hash() value.

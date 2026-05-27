@@ -37,6 +37,40 @@ function sendAdminNotification(PDO $pdo, string $eventTitle, string $lead, array
     }
 }
 
+function sendAdminSuggestedActionNotification(PDO $pdo, string $eventTitle, string $lead, array $details = [], array $links = []): void
+{
+    try {
+        $recipients = adminSuggestedActionNotificationRecipients($pdo);
+        if (empty($recipients)) {
+            error_log('admin suggested action notification skipped: recipient list is empty');
+            return;
+        }
+
+        $subject = '[Not Bul] ' . $eventTitle;
+        $htmlContent = buildAdminNotificationHtml($eventTitle, $lead, $details, $links);
+        $senderEmail = envValue('ADMIN_NOTIFY_SENDER_EMAIL', 'system-notify@notbul.site');
+        $senderName = envValue('ADMIN_NOTIFY_SENDER_NAME', 'Not Bul Sistem Bildirimi');
+
+        foreach ($recipients as $recipient) {
+            try {
+                sendBrevoEmail(
+                    (string)$recipient['email'],
+                    (string)$recipient['name'],
+                    $subject,
+                    $htmlContent,
+                    'admin öneri bildirimi',
+                    $senderEmail,
+                    $senderName
+                );
+            } catch (Throwable $e) {
+                error_log('admin suggested action notification send error for ' . (string)$recipient['email'] . ': ' . $e->getMessage());
+            }
+        }
+    } catch (Throwable $e) {
+        error_log('admin suggested action notification error: ' . $e->getMessage());
+    }
+}
+
 function adminNotificationRecipients(PDO $pdo): array
 {
     $recipients = [];
@@ -64,6 +98,31 @@ function adminNotificationRecipients(PDO $pdo): array
         }
     } catch (Throwable $e) {
         error_log('admin notification recipient query error: ' . $e->getMessage());
+    }
+
+    return $recipients;
+}
+
+function adminSuggestedActionNotificationRecipients(PDO $pdo): array
+{
+    $recipients = [];
+    $seen = [];
+
+    try {
+        $stmt = $pdo->query("
+            SELECT first_name, last_name, email
+            FROM users
+            WHERE role = 'admin'
+              AND admin_suggested_action_notifications = 1
+            ORDER BY id ASC
+        ");
+
+        foreach ($stmt->fetchAll() as $admin) {
+            $name = trim((string)($admin['first_name'] ?? '') . ' ' . (string)($admin['last_name'] ?? ''));
+            adminNotificationAddRecipient($recipients, $seen, (string)($admin['email'] ?? ''), $name);
+        }
+    } catch (Throwable $e) {
+        error_log('admin suggested action recipient query error: ' . $e->getMessage());
     }
 
     return $recipients;

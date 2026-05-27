@@ -530,6 +530,14 @@ a {
     cursor: pointer;
 }
 
+.registration-trap {
+    position: absolute;
+    left: -10000px;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+}
+
 .sticky-panel {
     position: sticky;
     top: 5.2rem;

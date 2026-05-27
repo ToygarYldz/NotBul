@@ -91,7 +91,19 @@ Bu script:
 - `$user`
 - `$pass`
 
-### 4) Uygulamayı çalıştır
+### 4) Bot kayıt koruması
+
+Kayıt formu Cloudflare Turnstile ve sunucu tarafı oran sınırlama ile korunur. `.env` veya ortam değişkenlerinde şu değerleri tanımla:
+
+```bash
+TURNSTILE_SITE_KEY=...
+TURNSTILE_SECRET_KEY=...
+TURNSTILE_EXPECTED_HOSTNAME=notbul.site
+```
+
+Uygulama bir güvenilir reverse proxy arkasında çalışıyorsa gerçek istemci IP’si için ayrıca `TRUST_PROXY_HEADERS=1` kullanılabilir.
+
+### 5) Uygulamayı çalıştır
 
 Örn. proje kökünde:
 
