@@ -4,6 +4,78 @@ declare(strict_types=1);
 
 $pageTitle = $pageTitle ?? 'Not Bul';
 $pageKey = $pageKey ?? 'home';
+
+require_once __DIR__ . '/env.php';
+
+if (!function_exists('notbul_meta_text')) {
+    function notbul_meta_text(?string $value, int $maxLength = 180): string
+    {
+        $text = trim(strip_tags((string)$value));
+        $text = preg_replace('/\s+/u', ' ', $text) ?? $text;
+
+        if ($maxLength > 0 && mb_strlen($text) > $maxLength) {
+            return rtrim(mb_substr($text, 0, $maxLength - 3)) . '...';
+        }
+
+        return $text;
+    }
+}
+
+if (!function_exists('notbul_base_url')) {
+    function notbul_base_url(): string
+    {
+        $configuredUrl = trim((string)(envValue('SITE_URL') ?? envValue('APP_URL') ?? ''));
+        if ($configuredUrl !== '') {
+            return rtrim($configuredUrl, '/');
+        }
+
+        $host = trim((string)($_SERVER['HTTP_HOST'] ?? ''));
+        if ($host === '') {
+            return '';
+        }
+
+        $isHttps = (
+            (!empty($_SERVER['HTTPS']) && strtolower((string)$_SERVER['HTTPS']) !== 'off')
+            || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && strtolower((string)$_SERVER['HTTP_X_FORWARDED_PROTO']) === 'https')
+        );
+
+        return ($isHttps ? 'https' : 'http') . '://' . $host;
+    }
+}
+
+if (!function_exists('notbul_absolute_url')) {
+    function notbul_absolute_url(?string $url, string $baseUrl): string
+    {
+        $url = trim((string)$url);
+        if ($url === '') {
+            return '';
+        }
+
+        if (preg_match('#^https?://#i', $url) === 1) {
+            return $url;
+        }
+
+        if ($baseUrl === '') {
+            return $url;
+        }
+
+        return rtrim($baseUrl, '/') . '/' . ltrim($url, '/');
+    }
+}
+
+$siteName = 'Not Bul';
+$defaultDescription = 'Üniversite ders notlarını bul, incele ve güvenli şekilde paylaş.';
+$baseUrl = notbul_base_url();
+$requestUri = (string)($_SERVER['REQUEST_URI'] ?? '');
+$currentUrl = $requestUri !== '' ? notbul_absolute_url($requestUri, $baseUrl) : $baseUrl;
+$metaTitle = notbul_meta_text($metaTitle ?? $pageTitle, 70);
+$metaDescription = notbul_meta_text($metaDescription ?? $defaultDescription, 180);
+$metaType = $metaType ?? 'website';
+$metaUrl = notbul_absolute_url($metaUrl ?? $currentUrl, $baseUrl);
+$metaImage = notbul_absolute_url($metaImage ?? 'assets/icons/apple-touch-icon.png', $baseUrl);
+$metaImageAlt = notbul_meta_text($metaImageAlt ?? $siteName, 120);
+$canonicalUrl = notbul_absolute_url($canonicalUrl ?? $metaUrl, $baseUrl);
+
 $navItems = [
     ['key' => 'search', 'label' => 'Ders Notu Bul', 'href' => 'search.php'],
     ['key' => 'upload', 'label' => 'Not Yükle', 'href' => 'upload.php'],
@@ -17,6 +89,28 @@ $navItems = [
     <meta name="color-scheme" content="light dark">
     <meta name="theme-color" content="#eef3f8" id="themeColorMeta">
     <meta name="apple-mobile-web-app-status-bar-style" content="default" id="appleStatusBarMeta">
+    <meta name="description" content="<?= htmlspecialchars($metaDescription, ENT_QUOTES, 'UTF-8'); ?>">
+    <?php if ($canonicalUrl !== ''): ?>
+        <link rel="canonical" href="<?= htmlspecialchars($canonicalUrl, ENT_QUOTES, 'UTF-8'); ?>">
+    <?php endif; ?>
+    <meta property="og:locale" content="tr_TR">
+    <meta property="og:site_name" content="<?= htmlspecialchars($siteName, ENT_QUOTES, 'UTF-8'); ?>">
+    <meta property="og:type" content="<?= htmlspecialchars($metaType, ENT_QUOTES, 'UTF-8'); ?>">
+    <meta property="og:title" content="<?= htmlspecialchars($metaTitle, ENT_QUOTES, 'UTF-8'); ?>">
+    <meta property="og:description" content="<?= htmlspecialchars($metaDescription, ENT_QUOTES, 'UTF-8'); ?>">
+    <?php if ($metaUrl !== ''): ?>
+        <meta property="og:url" content="<?= htmlspecialchars($metaUrl, ENT_QUOTES, 'UTF-8'); ?>">
+    <?php endif; ?>
+    <?php if ($metaImage !== ''): ?>
+        <meta property="og:image" content="<?= htmlspecialchars($metaImage, ENT_QUOTES, 'UTF-8'); ?>">
+        <meta property="og:image:alt" content="<?= htmlspecialchars($metaImageAlt, ENT_QUOTES, 'UTF-8'); ?>">
+    <?php endif; ?>
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="<?= htmlspecialchars($metaTitle, ENT_QUOTES, 'UTF-8'); ?>">
+    <meta name="twitter:description" content="<?= htmlspecialchars($metaDescription, ENT_QUOTES, 'UTF-8'); ?>">
+    <?php if ($metaImage !== ''): ?>
+        <meta name="twitter:image" content="<?= htmlspecialchars($metaImage, ENT_QUOTES, 'UTF-8'); ?>">
+    <?php endif; ?>
     <script>
         (() => {
             const root = document.documentElement;

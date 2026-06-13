@@ -433,8 +433,31 @@ $fileSizeBytes = (int)($note['file_size'] ?? 0);
 $formattedCreatedAt = date('d.m.Y H:i', strtotime((string)$note['created_at']));
 $ratingCount = (int)($note['rating_count'] ?? 0);
 $ratingAverage = $note['rating_average'] ?? null;
+$noteTitle = trim((string)($note['title'] ?? 'Ders Notu'));
+$rawMetaDescription = trim((string)($note['description'] ?? ''));
 
-$pageTitle = 'Not Bul | ' . htmlspecialchars($note['title']);
+if ($rawMetaDescription === '') {
+    $metaParts = array_filter([
+        $courseName,
+        $topicName,
+        $universityName !== '-' ? $universityName : '',
+        $departmentName !== '-' ? $departmentName : '',
+        $classLabel !== '-' ? $classLabel : '',
+    ], static fn(string $part): bool => trim($part) !== '');
+    $rawMetaDescription = $metaParts !== []
+        ? implode(' - ', $metaParts)
+        : 'Not Bul üzerinde paylaşılan ders notunu incele.';
+}
+
+$metaTitle = $noteTitle . ' | Not Bul';
+$metaDescription = $rawMetaDescription;
+$metaType = 'article';
+$metaUrl = 'note-detail.php?id=' . (int)$note['id'];
+$canonicalUrl = $metaUrl;
+$metaImage = 'assets/icons/apple-touch-icon.png';
+$metaImageAlt = $noteTitle . ' ders notu önizlemesi';
+
+$pageTitle = 'Not Bul | ' . $noteTitle;
 $pageKey = 'detail';
 require __DIR__ . '/includes/header.php';
 ?>
